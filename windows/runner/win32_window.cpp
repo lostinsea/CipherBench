@@ -121,6 +121,10 @@ Win32Window::~Win32Window() {
   Destroy();
 }
 
+HWND Win32Window::FindExistingWindow(const wchar_t* title) {
+  return ::FindWindowW(kWindowClassName, title);
+}
+
 bool Win32Window::Create(const std::wstring& title,
                          const Point& origin,
                          const Size& size) {
@@ -140,8 +144,7 @@ bool Win32Window::Create(const std::wstring& title,
     return false;
   }
 
-  const DWORD window_style =
-      WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+  const DWORD window_style = WS_OVERLAPPEDWINDOW;
   RECT frame{0, 0, Scale(size.width, scale_factor),
              Scale(size.height, scale_factor)};
   if (!AdjustWindowRectExForDpi(&frame, window_style, FALSE, 0, dpi)) {
@@ -201,6 +204,22 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case WM_GETMINMAXINFO: {
+      constexpr int kMinimumClientWidth = 800;
+      constexpr int kMinimumClientHeight = 600;
+      const UINT dpi = GetDpiForWindow(hwnd);
+      RECT frame{0, 0, MulDiv(kMinimumClientWidth, dpi, 96),
+                 MulDiv(kMinimumClientHeight, dpi, 96)};
+      const DWORD style = static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_STYLE));
+      const DWORD ex_style =
+          static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_EXSTYLE));
+      if (AdjustWindowRectExForDpi(&frame, style, FALSE, ex_style, dpi)) {
+        auto* min_max_info = reinterpret_cast<MINMAXINFO*>(lparam);
+        min_max_info->ptMinTrackSize.x = frame.right - frame.left;
+        min_max_info->ptMinTrackSize.y = frame.bottom - frame.top;
+      }
+      return 0;
+    }
     case WM_DESTROY:
       window_handle_ = nullptr;
       Destroy();

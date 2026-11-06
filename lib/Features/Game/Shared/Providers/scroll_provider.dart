@@ -5,6 +5,12 @@ import 'package:scioly_codebusters/library.dart';
 // Notifier that manages a ScrollController
 class ScrollControllerNotifier
     extends AutoDisposeFamilyNotifier<ScrollController, String> {
+  List<int> _rowByCell = const [];
+  double _rowHeight = 0;
+  double _bottomInset = 0;
+  double? _lastWidth;
+  double? _lastHeight;
+
   @override
   ScrollController build(String arg) {
     final controller = ScrollController();
@@ -12,25 +18,51 @@ class ScrollControllerNotifier
     return controller;
   }
 
-  // alter algorithm for if the dicitionary popover is there
-  void scrollToSelected(double position, {double? bottomInset}) {
-    if (!state.hasClients) return;
-    var scrollHeight =
+  bool updateLayout(
+    List<int> rowByCell,
+    PuzzleGeometry geometry,
+    double width,
+    double height,
+    double bottomInset,
+  ) {
+    final changed =
+        _lastWidth != width ||
+        _lastHeight != height ||
+        _rowHeight != geometry.rowHeight ||
+        _bottomInset != bottomInset ||
+        _rowByCell.length != rowByCell.length;
+    _rowByCell = rowByCell;
+    _rowHeight = geometry.rowHeight;
+    _bottomInset = bottomInset;
+    _lastWidth = width;
+    _lastHeight = height;
+    return changed;
+  }
+
+  void scrollToSelected(int index) {
+    if (!state.hasClients || index < 0 || index >= _rowByCell.length) return;
+    final position = insetPadding + _rowByCell[index] * _rowHeight;
+    final visibleTop = state.offset + insetPadding;
+    final visibleBottom =
+        state.offset +
         state.position.viewportDimension -
-        (containerHeight + 2 * decorationHeight) -
-        (bottomInset ?? keyboardH) -
-        panelHeight -
-        containerHeight * 2;
-    if ((position - state.offset) > scrollHeight) {
+        _bottomInset -
+        insetPadding;
+    double? target;
+    if (position < visibleTop) {
+      target = position - insetPadding;
+    } else if (position + _rowHeight > visibleBottom) {
+      target =
+          position +
+          _rowHeight +
+          _bottomInset +
+          insetPadding -
+          state.position.viewportDimension;
+    }
+    if (target != null) {
       state.animateTo(
-        position - (scrollHeight) + (containerHeight + 2 * decorationHeight),
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else if ((position - state.offset) < 0) {
-      state.animateTo(
-        position,
-        duration: Duration(milliseconds: 300),
+        target.clamp(0.0, state.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }

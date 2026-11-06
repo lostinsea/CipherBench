@@ -36,54 +36,59 @@ class DictionaryPopoverWidget extends ConsumerWidget {
       bottom: bottomInset,
       left: 0,
       right: 0,
-      child: Scrollbar(
-        controller: scrollController,
-        interactive: true,
-        trackVisibility: true,
-        thumbVisibility: true,
-        child: Container(
-          width: screenW,
-          height: containerHeight * 2,
-          color: Colors.black,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            primary: true,
-            child: Row(
-              children: [
-                ...(newWords.map((word) {
-                  return StyledButtonWidget(
-                    value: word,
-                    marginHorizontal: 3,
-                    marginVertical: 3,
-                    txtColor: suggestionColor,
-                    bgColor: suggestionColor,
-                    paddingVertical: 0,
-                    height: containerHeight,
-                    addTextShadow: true,
-                    onPressed: () async {
-                      await keyboardClickSound();
-                      keyboard.saveHistory();
-                      var curWord = word
-                          .toUpperCase()
-                          .replaceAll("'", "")
-                          .replaceAll("-", "")
-                          .split("");
-                      if (gameMode == GameMode.assisted) {
-                        curWord = curWord.toSet().toList();
-                      }
-                      provider.selectCell(wordStart);
-                      for (int j = 0; j < word.length; j++) {
-                        keyboard.pressKey("", false);
-                        provider.incrementCell(1);
-                      }
-                      provider.selectCell(wordStart);
-                      for (String letter in curWord) {
-                        keyboard.pressKey(letter, false);
-                      }
-                    },
-                  );
-                }).toList()),
-              ],
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+          child: Scrollbar(
+            controller: scrollController,
+            interactive: true,
+            trackVisibility: true,
+            thumbVisibility: true,
+            child: Container(
+              width: desktopContentWidth,
+              height: containerHeight * 2,
+              color: Colors.black,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                primary: true,
+                child: Row(
+                  children: [
+                    ...(newWords.map((word) {
+                      return StyledButtonWidget(
+                        value: word,
+                        marginHorizontal: 3,
+                        marginVertical: 3,
+                        txtColor: suggestionColor,
+                        bgColor: suggestionColor,
+                        paddingVertical: 0,
+                        height: containerHeight,
+                        addTextShadow: true,
+                        onPressed: () async {
+                          await keyboardClickSound();
+                          keyboard.saveHistory();
+                          var curWord = word
+                              .toUpperCase()
+                              .replaceAll("'", "")
+                              .replaceAll("-", "")
+                              .split("");
+                          if (gameMode == GameMode.assisted) {
+                            curWord = curWord.toSet().toList();
+                          }
+                          provider.selectCell(wordStart);
+                          for (int j = 0; j < word.length; j++) {
+                            keyboard.pressKey("", false);
+                            provider.incrementCell(1);
+                          }
+                          provider.selectCell(wordStart);
+                          for (String letter in curWord) {
+                            keyboard.pressKey(letter, false);
+                          }
+                        },
+                      );
+                    }).toList()),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

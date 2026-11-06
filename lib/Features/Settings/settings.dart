@@ -35,73 +35,80 @@ class _SettingsState extends ConsumerState<Settings> {
         ),
         body: Container(
           padding: EdgeInsets.all(insetPadding),
-          child: Column(
-            children: [
-              HeadingWidget(
-                neonColor: AppTheme.logoGreen,
-                title: "Background Music",
-                numIcon: Icon(Icons.music_note, color: Colors.black),
-              ),
-              Slider(
-                value: curSliderVal,
-                thumbColor: widget.audioCont?.isBgPlaying() ?? false
-                    ? AppTheme.logoGreen
-                    : Colors.grey,
-                activeColor: widget.audioCont?.isBgPlaying() ?? false
-                    ? AppTheme.logoGreen
-                    : Colors.grey,
-                onChanged: (value) async {
-                  if (widget.audioCont?.isBgPlaying() ?? false) {
-                    await settingsBox?.put(
-                      'prefs',
-                      settingsBox?.get('prefs').copyWith(bgVolume: value),
-                    );
-                    widget.audioCont?.setBgVolume(value);
-                    setState(() {
-                      curSliderVal = value;
-                    });
-                  }
-                },
-              ),
-              StyledButtonWidget(
-                value: widget.audioCont?.isBgPlaying() ?? false
-                    ? "Turn off Background Music"
-                    : "Turn On Background Music",
-                onPressed: () async {
-                  widget.audioCont?.toggleBgSound();
-                  setState(() {});
-                },
-                bgColor: widget.audioCont?.isBgPlaying() ?? false
-                    ? AppTheme.logoGreen
-                    : Colors.redAccent,
-                paddingVertical: 10,
-              ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+              child: Column(
+                children: [
+                  HeadingWidget(
+                    neonColor: AppTheme.logoGreen,
+                    title: "Background Music",
+                    numIcon: Icon(Icons.music_note, color: Colors.black),
+                  ),
+                  Slider(
+                    value: curSliderVal,
+                    thumbColor: widget.audioCont?.isBgPlaying() ?? false
+                        ? AppTheme.logoGreen
+                        : Colors.grey,
+                    activeColor: widget.audioCont?.isBgPlaying() ?? false
+                        ? AppTheme.logoGreen
+                        : Colors.grey,
+                    onChanged: (value) async {
+                      if (widget.audioCont?.isBgPlaying() ?? false) {
+                        await settingsBox?.put(
+                          'prefs',
+                          settingsBox?.get('prefs').copyWith(bgVolume: value),
+                        );
+                        widget.audioCont?.setBgVolume(value);
+                        setState(() {
+                          curSliderVal = value;
+                        });
+                      }
+                    },
+                  ),
+                  StyledButtonWidget(
+                    value: widget.audioCont?.isBgPlaying() ?? false
+                        ? "Turn off Background Music"
+                        : "Turn On Background Music",
+                    onPressed: () async {
+                      widget.audioCont?.toggleBgSound();
+                      setState(() {});
+                    },
+                    bgColor: widget.audioCont?.isBgPlaying() ?? false
+                        ? AppTheme.logoGreen
+                        : Colors.redAccent,
+                    paddingVertical: 10,
+                  ),
 
-              // Bg Matrix Effect
-              SizedBox(height: 30),
-              HeadingWidget(
-                neonColor: Colors.yellowAccent,
-                title: "Matrix Effect",
-                numIcon: Icon(Icons.compare_outlined, color: Colors.black),
+                  // Bg Matrix Effect
+                  SizedBox(height: 30),
+                  HeadingWidget(
+                    neonColor: Colors.yellowAccent,
+                    title: "Matrix Effect",
+                    numIcon: Icon(Icons.compare_outlined, color: Colors.black),
+                  ),
+                  StyledButtonWidget(
+                    value: bgMatrixOn
+                        ? "Turn off Background Effect"
+                        : "Turn on Background Effect",
+                    paddingVertical: 10,
+                    marginVertical: 20,
+                    bgColor: bgMatrixOn ? AppTheme.logoGreen : Colors.redAccent,
+                    onPressed: () async {
+                      await settingsBox?.put(
+                        "prefs",
+                        settingsBox
+                            ?.get("prefs")
+                            .copyWith(bgMatrixOn: !bgMatrixOn),
+                      );
+                      setState(() {
+                        bgMatrixOn = !bgMatrixOn;
+                      });
+                    },
+                  ),
+                ],
               ),
-              StyledButtonWidget(
-                value: bgMatrixOn
-                    ? "Turn off Background Effect"
-                    : "Turn on Background Effect",
-                paddingVertical: 10,
-                marginVertical: 20,
-                bgColor: bgMatrixOn ? AppTheme.logoGreen : Colors.redAccent,
-                onPressed: () async {
-                  await settingsBox?.put(
-                    "prefs",
-                    settingsBox?.get("prefs").copyWith(bgMatrixOn: !bgMatrixOn),
-                  );
-                  setState(() {
-                    bgMatrixOn = !bgMatrixOn;
-                  });
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),

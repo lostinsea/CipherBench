@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:scioly_codebusters/library.dart';
 
@@ -36,8 +35,6 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
   late final Animation<double> _glowAnimation;
   late final Animation<double> _stopsAnimation;
 
-  final _mobileButtonWidth = GameSetup.width * (5 / 6);
-  final _biggerButtonWidth = GameSetup.height * (1 / 2);
   late final List<Color> gradientColor;
 
   @override
@@ -96,16 +93,17 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
 
   @override
   Widget build(BuildContext context) {
-    final _buttonWidth = screenW >= mobileMaxWidth
-        ? _biggerButtonWidth
-        : _mobileButtonWidth;
+    final size = MediaQuery.sizeOf(context);
+    final buttonWidth = size.width >= mobileMaxWidth
+        ? size.height / 2
+        : size.width * (5 / 6);
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
         return InkWell(
           onTap: _onTap,
           child: Container(
-            width: _buttonWidth,
+            width: buttonWidth,
             decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(

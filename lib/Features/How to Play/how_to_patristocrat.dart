@@ -25,48 +25,53 @@ class PatristocratInstructionsPage extends StatelessWidget {
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              SectionTitle('What is a Patristocrat?'),
-              Paragraph(
-                'A Patristocrat is a type of cryptogram puzzle, just like an Aristocrat. It uses a substitution cipher — where each letter in the message is replaced by a different letter — and your job is to figure out the original message.',
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  SectionTitle('What is a Patristocrat?'),
+                  Paragraph(
+                    'A Patristocrat is a type of cryptogram puzzle, just like an Aristocrat. It uses a substitution cipher — where each letter in the message is replaced by a different letter — and your job is to figure out the original message.',
+                  ),
+                  Paragraph(
+                    'The twist? In a Patristocrat, the message is written without spaces or punctuation. This makes it harder to read and solve.',
+                  ),
+                  ExampleBlock(
+                    ciphertext: 'SCUFPYHRNXZVQBZOAPTLUDZEUXSCUMWIJXYEUX',
+                    solution: 'THEQUICKBROWNFOXJUMPEDOVERTHELAZYRIVER',
+                  ),
+                  SectionTitle('Tips to Solve'),
+                  BulletPoints([
+                    'Look for short, common words like “THE”, “AND”, or “TO”.',
+                    'Use your knowledge of word patterns — even without spaces.',
+                    'Try visually splitting the string into words that make sense.',
+                    'Watch for letter frequency patterns, just like in Aristocrats.',
+                  ]),
+                  SectionTitle('Don’t Panic!'),
+                  Paragraph(
+                    'At first, Patristocrats can feel overwhelming. But as you get better at spotting word patterns and decoding letters, you’ll start to see where words begin and end — even without spaces.',
+                  ),
+                  SectionTitle('Need Help?'),
+                  BulletPoints([
+                    '✅ Show Correct — Highlights which letters are correct.',
+                    '💬 Hint — Reveals the correct letter at a selected spot.',
+                  ]),
+                  SectionTitle('Game Modes'),
+                  BulletPoints([
+                    'Assisted — Fills in identical letters automatically',
+                    'Manual — Fill every letter manually, good for paper competition practice',
+                  ]),
+                  SectionTitle('Star Solves'),
+                  BulletPoints([
+                    '⭐ One stars: Solve with any hints (dictionary, show correct, or hint button).',
+                    '⭐⭐ Two stars: Solve with no hints.',
+                    '⭐⭐⭐ Three stars: Solve with no hints and no undo/delete.',
+                  ]),
+                ],
               ),
-              Paragraph(
-                'The twist? In a Patristocrat, the message is written without spaces or punctuation. This makes it harder to read and solve.',
-              ),
-              ExampleBlock(
-                ciphertext: 'SCUFPYHRNXZVQBZOAPTLUDZEUXSCUMWIJXYEUX',
-                solution: 'THEQUICKBROWNFOXJUMPEDOVERTHELAZYRIVER',
-              ),
-              SectionTitle('Tips to Solve'),
-              BulletPoints([
-                'Look for short, common words like “THE”, “AND”, or “TO”.',
-                'Use your knowledge of word patterns — even without spaces.',
-                'Try visually splitting the string into words that make sense.',
-                'Watch for letter frequency patterns, just like in Aristocrats.',
-              ]),
-              SectionTitle('Don’t Panic!'),
-              Paragraph(
-                'At first, Patristocrats can feel overwhelming. But as you get better at spotting word patterns and decoding letters, you’ll start to see where words begin and end — even without spaces.',
-              ),
-              SectionTitle('Need Help?'),
-              BulletPoints([
-                '✅ Show Correct — Highlights which letters are correct.',
-                '💬 Hint — Reveals the correct letter at a selected spot.',
-              ]),
-              SectionTitle('Game Modes'),
-              BulletPoints([
-                'Assisted — Fills in identical letters automatically',
-                'Manual — Fill every letter manually, good for paper competition practice',
-              ]),
-              SectionTitle('Star Solves'),
-              BulletPoints([
-                '⭐ One stars: Solve with any hints (dictionary, show correct, or hint button).',
-                '⭐⭐ Two stars: Solve with no hints.',
-                '⭐⭐⭐ Three stars: Solve with no hints and no undo/delete.',
-              ]),
-            ],
+            ),
           ),
         ),
       ),

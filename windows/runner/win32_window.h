@@ -28,6 +28,12 @@ class Win32Window {
   Win32Window();
   virtual ~Win32Window();
 
+  static constexpr wchar_t kClosingWindowProperty[] =
+      L"SciolyCodebustersClosing";
+
+  // Find an existing runner window without registering this process's class.
+  static HWND FindExistingWindow(const wchar_t* title);
+
   // Creates a window on the monitor nearest |origin|. |size| is the desired
   // client area in logical pixels, scaled for DPI and capped to the work area.
   // The window is invisible until |Show| is called.

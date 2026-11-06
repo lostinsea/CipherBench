@@ -29,12 +29,19 @@ class FavoritesTab extends ConsumerWidget {
               final reverseIndex = favorites.length - 1 - index;
               final quote = favorites[reverseIndex];
               final quoteIndex = ref.read(quoteListProvider).indexOf(quote);
-              return QuoteCard(
-                quote: quote,
-                color: colors[index % colors.length],
-                onFavoriteToggle: () => ref
-                    .read(quoteListProvider.notifier)
-                    .toggleFavorite(quoteIndex),
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: desktopContentWidth,
+                  ),
+                  child: QuoteCard(
+                    quote: quote,
+                    color: colors[index % colors.length],
+                    onFavoriteToggle: () => ref
+                        .read(quoteListProvider.notifier)
+                        .toggleFavorite(quoteIndex),
+                  ),
+                ),
               );
             },
           );

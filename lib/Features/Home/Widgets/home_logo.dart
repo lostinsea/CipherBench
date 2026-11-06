@@ -1,15 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class HomeLogo extends StatelessWidget {
-  HomeLogo({super.key});
-  final mobileSize = GameSetup.width * (1 / 2);
-  final biggerSize = GameSetup.height * (1 / 3);
+  const HomeLogo({super.key});
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    final baseLogoSize = size.width >= mobileMaxWidth
+        ? (size.height / 3).clamp(0.0, 320.0)
+        : isWindows
+        ? (size.width / 2).clamp(0.0, size.height / 3)
+        : size.width / 2;
+    final logoSize = baseLogoSize * (isWindows ? 0.4 : 1.0);
     return Container(
-      width: (screenW >= mobileMaxWidth) ? biggerSize : mobileSize,
-      height: (screenW >= mobileMaxWidth) ? biggerSize : mobileSize,
+      width: logoSize,
+      height: logoSize,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(500),
         border: Border.all(color: AppTheme.logoGreen, width: 2),

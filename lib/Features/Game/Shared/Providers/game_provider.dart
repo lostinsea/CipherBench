@@ -71,13 +71,7 @@ class GameProvider extends FamilyNotifier<Game, String> {
     if (state.gameMode == GameMode.assisted) {
       state = state.copyWith(cells: [...state.cells].highlightCells(index));
     }
-    ref
-        .read(scrollProvider(arg).notifier)
-        .scrollToSelected(
-          state.cells[index].row *
-              (containerHeight + 3 * padding + 2 * decorationHeight),
-          bottomInset: usePhysicalKeyboard ? desktopCommandsHeight : keyboardH,
-        );
+    ref.read(scrollProvider(arg).notifier).scrollToSelected(index);
   }
 
   //nexCell(-1) goes to first valid cell

@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,10 @@ void main() async {
     audioController = AudioController();
     await audioController.initialize();
   }
+  AppLifecycleListener(onExitRequested: () async {
+    audioController?.dispose();
+    return AppExitResponse.exit;
+  });
   // final textSpan = TextSpan(
   //   text: 'G', // The character to measure
   //   style: TextStyle(fontSize: 14, color: Colors.black),

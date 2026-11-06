@@ -7,12 +7,14 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
   final String gameKey;
   final Language language;
   final Widget child;
+  final bool confirmReset;
 
   const KeyboardShortcutsWidget({
     super.key,
     required this.gameKey,
     required this.language,
     required this.child,
+    this.confirmReset = false,
   });
 
   static Map<String, String> commands(Language language) => {
@@ -53,7 +55,11 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
       child: Actions(
         actions: <Type, Action<Intent>>{
           UndoCellIntent: UndoCellAction(gameKey: gameKey, ref: ref),
-          ResetCellIntent: ResetCellAction(gameKey: gameKey, ref: ref),
+          ResetCellIntent: ResetCellAction(
+            gameKey: gameKey,
+            ref: ref,
+            confirmationContext: confirmReset ? context : null,
+          ),
           DeleteCellIntent: DeleteCellAction(gameKey: gameKey, ref: ref),
           KeyPressIntent: KeyPressAction(gameKey: gameKey, ref: ref),
           MoveCellIntent: MoveCellAction(gameKey: gameKey, ref: ref),

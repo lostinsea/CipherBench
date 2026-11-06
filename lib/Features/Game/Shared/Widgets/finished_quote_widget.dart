@@ -61,7 +61,10 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
       color: Colors.black.withAlpha(100),
       child: Center(
         child: Container(
-          width: screenW - 50,
+          width: (MediaQuery.sizeOf(context).width - 50).clamp(
+            0.0,
+            desktopContentWidth,
+          ),
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
           decoration: BoxDecoration(
             color: Colors.black,

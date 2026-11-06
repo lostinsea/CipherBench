@@ -27,6 +27,7 @@ export 'Features/Game/Shared/Providers/game_provider.dart';
 export 'Features/Game/Shared/Providers/timer_provider.dart';
 export 'Features/Game/Shared/Providers/scroll_provider.dart';
 export 'Features/Game/Shared/Util/cell_helper.dart';
+export 'Features/Game/Shared/Util/puzzle_layout.dart';
 export 'Features/Game/Shared/Widgets/cryptogram_grid_widget.dart';
 export 'Features/Game/Shared/Widgets/cell_widget.dart';
 export 'Features/Game/Shared/Widgets/timer_widget.dart';

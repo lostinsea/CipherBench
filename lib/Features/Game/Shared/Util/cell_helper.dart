@@ -49,31 +49,4 @@ extension CellHelpers on List<Cell> {
       ),
     ).toList();
   }
-
-  List<Cell> calculateRows(String arg) {
-    final newCells = [...this];
-    double rowSize = 0.0, wordSize = 0.0;
-    int rowCount = 0, wordStart = 0;
-    void updateRow(int start, int end) {
-      if (rowSize + wordSize > maxLength) {
-        rowSize = 0.0;
-        rowCount++;
-      }
-      for (int j = start; j <= end; j++) {
-        newCells[j] = newCells[j].copyWith(row: rowCount);
-      }
-      rowSize += wordSize;
-    }
-
-    for (int i = 0; i < newCells.length; i++) {
-      wordSize += containerWidth + padding;
-      if (newCells[i].text == " " || arg == "Patristocrat") {
-        updateRow(wordStart, i);
-        wordSize = 0.0;
-        wordStart = i + 1;
-      }
-    }
-    updateRow(wordStart, newCells.length - 1);
-    return newCells;
-  }
 }

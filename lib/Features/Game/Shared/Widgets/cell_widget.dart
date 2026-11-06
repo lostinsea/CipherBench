@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -5,8 +6,14 @@ import 'package:scioly_codebusters/library.dart';
 class CellWidget extends ConsumerWidget {
   final int index;
   final String gameKey;
+  final PuzzleGeometry geometry;
 
-  const CellWidget({super.key, required this.index, required this.gameKey});
+  const CellWidget({
+    super.key,
+    required this.index,
+    required this.gameKey,
+    required this.geometry,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,37 +57,49 @@ class CellWidget extends ConsumerWidget {
       textColor = Colors.black;
     }
 
+    final selectedOutline =
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows &&
+        cells[index].isSelected;
+
     if (!cells[index].isException) {
       return Column(
         children: [
           SizedBox(
-            width: containerWidth,
-            height: decorationHeight,
+            width: geometry.cellWidth,
+            height: geometry.labelHeight,
             child: Center(
               child: Text(
                 cells[index].cipher,
-                style: AppTheme.decorationTextStyle,
+                style: AppTheme.decorationTextStyle.copyWith(
+                  fontSize: geometry.labelFontSize,
+                ),
               ),
             ),
           ),
-          SizedBox(width: containerWidth, height: padding),
+          SizedBox(width: geometry.cellWidth, height: geometry.gap),
           InkWell(
             onTap: () =>
                 ref.read(gameProvider(gameKey).notifier).selectCell(index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: containerWidth,
-              height: containerHeight,
+              width: geometry.cellWidth,
+              height: geometry.cellHeight,
               decoration: BoxDecoration(
                 color: cellColor,
-                border: Border.all(color: borderColor, width: 1),
+                border: Border.all(
+                  color: selectedOutline
+                      ? const Color(0xFFFFD54F)
+                      : borderColor,
+                  width: selectedOutline ? 2 : 1,
+                ),
                 boxShadow: shadows,
               ),
               child: Center(
                 child: Text(
                   cells[index].text,
                   style: TextStyle(
-                    fontSize: containerFS,
+                    fontSize: geometry.cellFontSize,
                     fontWeight: FontWeight.w600,
                     color: textColor,
                   ),
@@ -88,14 +107,16 @@ class CellWidget extends ConsumerWidget {
               ),
             ),
           ),
-          SizedBox(width: containerWidth, height: padding),
+          SizedBox(width: geometry.cellWidth, height: geometry.gap),
           SizedBox(
-            width: containerWidth,
-            height: decorationHeight,
+            width: geometry.cellWidth,
+            height: geometry.labelHeight,
             child: Center(
               child: Text(
                 "${cells[index].count}",
-                style: AppTheme.decorationTextStyle,
+                style: AppTheme.decorationTextStyle.copyWith(
+                  fontSize: geometry.labelFontSize,
+                ),
               ),
             ),
           ),
@@ -103,10 +124,15 @@ class CellWidget extends ConsumerWidget {
       );
     } else {
       return SizedBox(
-        width: containerWidth,
-        height: containerHeight,
+        width: geometry.cellWidth,
+        height: geometry.cellHeight,
         child: Center(
-          child: Text(cells[index].text, style: AppTheme.keyboardKeyTextStyle),
+          child: Text(
+            cells[index].text,
+            style: AppTheme.keyboardKeyTextStyle.copyWith(
+              fontSize: geometry.exceptionFontSize,
+            ),
+          ),
         ),
       );
     }

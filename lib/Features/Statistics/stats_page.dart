@@ -17,47 +17,63 @@ class StatsPage extends StatelessWidget {
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(insetPadding),
-            child: Column(
-              children: [
-                Text(
-                  "Solve Statistics - $widgetKey",
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    shadows: [Shadow(color: AppTheme.logoGreen, blurRadius: 5)],
-                  ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: desktopContentWidth,
                 ),
-                const SizedBox(height: padding + 10),
-                StatBoxWidget(
-                  title: "All Time",
-                  num: "01",
-                  neonColor: Colors.pinkAccent,
-                  fastest: stats.fastestSolveTimeAll.toStringAsFixed(2),
-                  average: stats.avgSolveTimeAll.toStringAsFixed(2),
-                  solved: stats.totalSolvedAll.toString(),
-                ),
-                const SizedBox(height: padding + 10),
+                child: Column(
+                  children: [
+                    Text(
+                      "Solve Statistics - $widgetKey",
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            shadows: [
+                              Shadow(color: AppTheme.logoGreen, blurRadius: 5),
+                            ],
+                          ),
+                    ),
+                    const SizedBox(height: padding + 10),
+                    StatBoxWidget(
+                      title: "All Time",
+                      num: "01",
+                      neonColor: Colors.pinkAccent,
+                      fastest: stats.fastestSolveTimeAll.toStringAsFixed(2),
+                      average: stats.avgSolveTimeAll.toStringAsFixed(2),
+                      solved: stats.totalSolvedAll.toString(),
+                    ),
+                    const SizedBox(height: padding + 10),
 
-                StatBoxWidget(
-                  title: "This Week",
-                  num: "02",
-                  neonColor: Colors.yellowAccent,
-                  fastest: stats.fastestSolveTimeThisWeek.toStringAsFixed(2),
-                  average: stats.avgSolveTimeThisWeek.toStringAsFixed(2),
-                  solved: stats.totalSolvedThisWeek.toString(),
-                ),
-                const SizedBox(height: padding + 10),
+                    StatBoxWidget(
+                      title: "This Week",
+                      num: "02",
+                      neonColor: Colors.yellowAccent,
+                      fastest: stats.fastestSolveTimeThisWeek.toStringAsFixed(
+                        2,
+                      ),
+                      average: stats.avgSolveTimeThisWeek.toStringAsFixed(2),
+                      solved: stats.totalSolvedThisWeek.toString(),
+                    ),
+                    const SizedBox(height: padding + 10),
 
-                StatBoxWidget(
-                  title: "Last Week",
-                  num: "03",
-                  neonColor: Colors.lightBlueAccent,
-                  fastest: stats.fastestSolveTimeLastWeek.toStringAsFixed(2),
-                  average: stats.avgSolveTimeLastWeek.toStringAsFixed(2),
-                  solved: stats.totalSolvedLastWeek.toString(),
+                    StatBoxWidget(
+                      title: "Last Week",
+                      num: "03",
+                      neonColor: Colors.lightBlueAccent,
+                      fastest: stats.fastestSolveTimeLastWeek.toStringAsFixed(
+                        2,
+                      ),
+                      average: stats.avgSolveTimeLastWeek.toStringAsFixed(2),
+                      solved: stats.totalSolvedLastWeek.toString(),
+                    ),
+                    const SizedBox(height: padding + 10),
+                    SubsectionTitle(
+                      'Only 2-star solves and higher are counted',
+                    ),
+                    const SizedBox(height: padding + 10),
+                  ],
                 ),
-                const SizedBox(height: padding + 10),
-                SubsectionTitle('Only 2-star solves and higher are counted'),
-                const SizedBox(height: padding + 10),
-              ],
+              ),
             ),
           ),
         ),

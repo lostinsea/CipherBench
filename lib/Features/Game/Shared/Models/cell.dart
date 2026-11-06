@@ -8,7 +8,6 @@ class Cell {
   final bool isException;
   final bool isCorrect;
   final int count;
-  final int row;
 
   Cell({
     required this.text,
@@ -20,7 +19,6 @@ class Cell {
     this.isSelected = false,
     this.isCorrect = false,
     this.count = 0,
-    this.row = 0,
   });
 
   Cell copyWith({
@@ -33,7 +31,6 @@ class Cell {
     bool? isSelected,
     bool? isCorrect,
     int? count,
-    int? row,
   }) {
     return Cell(
       text: text ?? this.text,
@@ -45,7 +42,6 @@ class Cell {
       isSelected: isSelected ?? this.isSelected,
       isCorrect: isCorrect ?? this.isCorrect,
       count: count ?? this.count,
-      row: row ?? this.row,
     );
   }
 }

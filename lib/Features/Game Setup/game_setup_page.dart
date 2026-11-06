@@ -26,175 +26,184 @@ class GamePageSetup extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: AppTheme.appBarBackground,
         appBar: AppBar(backgroundColor: AppTheme.appBarBackground),
-        body: Column(
-          children: [
-            Center(
-              child: Text(
-                gameId.toUpperCase(),
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  shadows: [Shadow(color: AppTheme.logoGreen, blurRadius: 5)],
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Center(
-              child: Text(
-                "Select Game Mode".toUpperCase(),
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-            ),
-            Expanded(
-              child: Container(
-                padding: EdgeInsets.all(insetPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(height: buttonMargin),
-                    SizedBox(
-                      width: double.infinity,
-                      child: HomeButtonWidget(
-                        btnText: "Assisted",
-                        neonColor: gameMode == GameMode.assisted
-                            ? Colors.lightGreenAccent
-                            : Colors.grey,
-                        initialAlpha: 0,
-                        finalAlpha: 10,
-                        onPressed: () async {
-                          await buttonClickSound();
-                          gmProvider.setGameMode(GameMode.assisted);
-                        },
-                      ),
-                    ),
-                    SizedBox(height: buttonMargin),
-                    SizedBox(
-                      width: double.infinity,
-                      child: HomeButtonWidget(
-                        btnText: "Manual",
-                        neonColor: gameMode == GameMode.manual
-                            ? Colors.lightGreenAccent
-                            : Colors.grey,
-                        initialAlpha: 0,
-                        finalAlpha: 10,
-                        onPressed: () async {
-                          await buttonClickSound();
-                          gmProvider.setGameMode(GameMode.manual);
-                        },
-                      ),
-                    ),
-                    SizedBox(height: buttonMargin),
-                    Spacer(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: HomeButtonWidget(
-                              btnText: "Stats",
-                              neonColor: Colors.yellowAccent,
-                              onPressed: () async {
-                                await buttonClickSound();
-                                // Make sure context is still valid with mounted
-                                if (!context.mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        StatsPage(widgetKey: key, stats: stats),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: buttonMargin),
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: HomeButtonWidget(
-                              btnText: "How to Play",
-                              neonColor: Colors.yellowAccent,
-                              onPressed: () async {
-                                await buttonClickSound();
-                                // Make sure context is still valid with mounted
-                                if (!context.mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        Instructions(gameId: gameId),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+            child: Column(
+              children: [
+                Center(
+                  child: Text(
+                    gameId.toUpperCase(),
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      shadows: [
+                        Shadow(color: AppTheme.logoGreen, blurRadius: 5),
                       ],
                     ),
-                    SizedBox(height: buttonMargin),
-                    Row(
+                  ),
+                ),
+                SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    "Select Game Mode".toUpperCase(),
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.all(insetPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: HomeButtonWidget(
-                              btnText: "New Puzzle",
-                              neonColor: Colors.redAccent,
-                              onPressed: () async {
-                                await buttonClickSound();
-                                // Make sure context is still valid with mounted
-                                await gProvider.buildCryptogram(
-                                  gameMode,
-                                  language,
-                                  gameId,
-                                );
-                                if (!context.mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => GamePage(
-                                      gameId: gameId,
-                                      gameMode: gameMode,
-                                      language: language,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                        SizedBox(height: buttonMargin),
+                        SizedBox(
+                          width: double.infinity,
+                          child: HomeButtonWidget(
+                            btnText: "Assisted",
+                            neonColor: gameMode == GameMode.assisted
+                                ? Colors.lightGreenAccent
+                                : Colors.grey,
+                            initialAlpha: 0,
+                            finalAlpha: 10,
+                            onPressed: () async {
+                              await buttonClickSound();
+                              gmProvider.setGameMode(GameMode.assisted);
+                            },
                           ),
                         ),
-                        if (cellCount > 0) SizedBox(width: buttonMargin),
-                        if (cellCount > 0)
-                          Expanded(
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: HomeButtonWidget(
-                                btnText: "Continue",
-                                neonColor: Colors.pinkAccent,
-                                onPressed: () async {
-                                  await buttonClickSound();
-                                  // Make sure context is still valid with mounted
-                                  if (!context.mounted) return;
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => GamePage(
-                                        gameId: gameId,
-                                        gameMode: gameMode,
-                                        language: language,
+                        SizedBox(height: buttonMargin),
+                        SizedBox(
+                          width: double.infinity,
+                          child: HomeButtonWidget(
+                            btnText: "Manual",
+                            neonColor: gameMode == GameMode.manual
+                                ? Colors.lightGreenAccent
+                                : Colors.grey,
+                            initialAlpha: 0,
+                            finalAlpha: 10,
+                            onPressed: () async {
+                              await buttonClickSound();
+                              gmProvider.setGameMode(GameMode.manual);
+                            },
+                          ),
+                        ),
+                        SizedBox(height: buttonMargin),
+                        Spacer(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: HomeButtonWidget(
+                                  btnText: "Stats",
+                                  neonColor: Colors.yellowAccent,
+                                  onPressed: () async {
+                                    await buttonClickSound();
+                                    // Make sure context is still valid with mounted
+                                    if (!context.mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => StatsPage(
+                                          widgetKey: key,
+                                          stats: stats,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
+                                    );
+                                  },
+                                ),
                               ),
                             ),
-                          ),
+                            SizedBox(width: buttonMargin),
+                            Expanded(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: HomeButtonWidget(
+                                  btnText: "How to Play",
+                                  neonColor: Colors.yellowAccent,
+                                  onPressed: () async {
+                                    await buttonClickSound();
+                                    // Make sure context is still valid with mounted
+                                    if (!context.mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            Instructions(gameId: gameId),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: buttonMargin),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: HomeButtonWidget(
+                                  btnText: "New Puzzle",
+                                  neonColor: Colors.redAccent,
+                                  onPressed: () async {
+                                    await buttonClickSound();
+                                    // Make sure context is still valid with mounted
+                                    await gProvider.buildCryptogram(
+                                      gameMode,
+                                      language,
+                                      gameId,
+                                    );
+                                    if (!context.mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => GamePage(
+                                          gameId: gameId,
+                                          gameMode: gameMode,
+                                          language: language,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            if (cellCount > 0) SizedBox(width: buttonMargin),
+                            if (cellCount > 0)
+                              Expanded(
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: HomeButtonWidget(
+                                    btnText: "Continue",
+                                    neonColor: Colors.pinkAccent,
+                                    onPressed: () async {
+                                      await buttonClickSound();
+                                      // Make sure context is still valid with mounted
+                                      if (!context.mounted) return;
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => GamePage(
+                                            gameId: gameId,
+                                            gameMode: gameMode,
+                                            language: language,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

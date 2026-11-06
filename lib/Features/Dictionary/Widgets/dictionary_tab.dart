@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:scioly_codebusters/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 //longest english: simultaneously
 //longest spanish: responsabilidades
 
-double getEntryHeight(int wordCount, int wordLen) {
+double getEntryHeight(int wordCount, int wordLen, double viewportWidth) {
   // Calculate how many words fit per row
   int wordsPerRow =
-      ((screenW - 4 * insetPadding) /
+      ((viewportWidth - 4 * insetPadding) /
               (getWordWidgetWidth(wordLen) + wordWidgetSpacing))
           .floor();
+  if (wordsPerRow < 1) wordsPerRow = 1;
   int numRows = (wordCount / wordsPerRow).ceil();
+  if (numRows < 1) numRows = 1;
   return (entryWidgetHeight + (numRows - 1) * wordH)
       .toDouble(); // + heading + SizedBox
 }
@@ -22,13 +25,14 @@ double getWordWidgetWidth(int len) {
 double getJump(
   List<MapEntry<String, List<String>>> entries,
   int targetEntryIndex,
+  double viewportWidth,
 ) {
   double ans = 0;
   for (int i = 0; i < targetEntryIndex; i++) {
     final entry = entries[i];
     int wordCount = entry.value.length;
     int wordLen = entry.key.length;
-    ans += getEntryHeight(wordCount, wordLen);
+    ans += getEntryHeight(wordCount, wordLen, viewportWidth);
   }
   return ans;
 }
@@ -132,8 +136,13 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
       return;
     }
 
+    final scrollStep = MediaQuery.sizeOf(context).height;
     if (attempt == 0 && widget.scrollController.hasClients) {
-      double jumpOffset = getJump(entries, targetEntryIndex);
+      double jumpOffset = getJump(
+        entries,
+        targetEntryIndex,
+        MediaQuery.sizeOf(context).width.clamp(0, desktopContentWidth),
+      );
       jumpOffset = jumpOffset.clamp(
         0.0,
         widget.scrollController.position.maxScrollExtent,
@@ -144,8 +153,6 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
         curve: Curves.easeInOut,
       );
     }
-    double scrollStep = screenH;
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_userInterrupted) {
         if (_isJumping) setState(() => _isJumping = false);
@@ -182,88 +189,93 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
         .entries
         .toList();
 
-    return Stack(
-      children: [
-        Column(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(searchPadding),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search word...',
-                        hintStyle: TextStyle(color: AppTheme.logoGreen),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppTheme.logoGreen,
-                            width: 1,
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(searchPadding),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search word...',
+                            hintStyle: TextStyle(color: AppTheme.logoGreen),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: AppTheme.logoGreen,
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: Colors.black.withAlpha(200),
+                                width: 1,
+                              ),
+                            ),
+                            fillColor: Colors.black.withAlpha(150),
+                            suffixIcon: Icon(Icons.search, color: Colors.white),
                           ),
-                          borderRadius: BorderRadius.circular(10),
+                          cursorColor: AppTheme.logoGreen,
+                          style: TextStyle(color: AppTheme.logoGreen),
+                          onSubmitted: (_) => _onSearch(entries),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: Colors.black.withAlpha(200),
-                            width: 1,
-                          ),
-                        ),
-                        fillColor: Colors.black.withAlpha(150),
-                        suffixIcon: Icon(Icons.search, color: Colors.white),
                       ),
-                      cursorColor: AppTheme.logoGreen,
-                      style: TextStyle(color: AppTheme.logoGreen),
-                      onSubmitted: (_) => _onSearch(entries),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  if (notification is UserScrollNotification) {
-                    _userInterrupted = true;
-                  }
-                  return false;
-                },
-                child: Scrollbar(
-                  controller: widget.scrollController,
-                  child: ListView.separated(
-                    controller: widget.scrollController,
-                    padding: const EdgeInsets.all(insetPadding),
-                    itemCount: entries.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 24),
-                    itemBuilder: (context, index) {
-                      final entry = entries[index];
-                      final curColor =
-                          widget.colors[index % widget.colors.length];
-                      return DictionaryEntryWidget(
-                        entry: entry,
-                        index: index,
-                        curColor: curColor,
-                        isEntryHighlighted: index == _highlightedEntryIndex,
-                        entryKey: _entryKeys.putIfAbsent(
-                          index,
-                          () => GlobalKey(),
-                        ),
-                        wordKeys: _wordKeys,
-                        searchTerm: _searchTerm,
-                      );
-                    },
+                    ],
                   ),
                 ),
-              ),
+                Expanded(
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is UserScrollNotification) {
+                        _userInterrupted = true;
+                      }
+                      return false;
+                    },
+                    child: Scrollbar(
+                      controller: widget.scrollController,
+                      child: ListView.separated(
+                        controller: widget.scrollController,
+                        padding: const EdgeInsets.all(insetPadding),
+                        itemCount: entries.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 24),
+                        itemBuilder: (context, index) {
+                          final entry = entries[index];
+                          final curColor =
+                              widget.colors[index % widget.colors.length];
+                          return DictionaryEntryWidget(
+                            entry: entry,
+                            index: index,
+                            curColor: curColor,
+                            isEntryHighlighted: index == _highlightedEntryIndex,
+                            entryKey: _entryKeys.putIfAbsent(
+                              index,
+                              () => GlobalKey(),
+                            ),
+                            wordKeys: _wordKeys,
+                            searchTerm: _searchTerm,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+            if (_isJumping)
+              Container(
+                color: Colors.black.withAlpha((0.4 * 255).toInt()),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
-        if (_isJumping)
-          Container(
-            color: Colors.black.withAlpha((0.4 * 255).toInt()),
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-      ],
+      ),
     );
   }
 }

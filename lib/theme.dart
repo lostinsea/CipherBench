@@ -8,6 +8,7 @@ import 'package:scioly_codebusters/library.dart';
 const buttonWidth = 200.0;
 // inset padding
 const insetPadding = 16.0;
+const desktopContentWidth = 1100.0;
 //styling for cells
 const containerWidth = 20.0;
 const containerHeight = containerWidth * 1.25;

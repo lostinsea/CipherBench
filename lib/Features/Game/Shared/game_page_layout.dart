@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
 
-class GamePageLayout extends ConsumerWidget {
+class GamePageLayout extends ConsumerStatefulWidget {
   final GamePageConfig config;
   final bool addKeyboard;
 
@@ -13,10 +14,19 @@ class GamePageLayout extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final gameId = config.gameId;
-    final gameMode = config.gameMode;
-    final language = config.language;
+  ConsumerState<GamePageLayout> createState() => _GamePageLayoutState();
+}
+
+class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
+  int _zoomPercent = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    final gameId = widget.config.gameId;
+    final gameMode = widget.config.gameMode;
+    final language = widget.config.language;
 
     final key = "$gameId (${toTitleCase(gameMode.name)})";
     final provider = ref.read(gameProvider(key).notifier);
@@ -33,44 +43,98 @@ class GamePageLayout extends ConsumerWidget {
       gameProvider(key).select((s) => s.showSuggestions),
     );
 
-    final bottomInset = addKeyboard ? keyboardH : desktopCommandsHeight;
+    final bottomInset = widget.addKeyboard ? keyboardH : desktopCommandsHeight;
+    final suggestionInset = showSuggestions ? containerHeight * 2 : 0.0;
     final game = Container(
-      constraints: BoxConstraints.tightForFinite(height: screenH),
       decoration: AppTheme.backgroundGradient,
       child: Scaffold(
         backgroundColor: AppTheme.appBarBackground,
         appBar: AppBar(
           backgroundColor: AppTheme.appBarBackground,
-          title: Text(
-            gameId,
-            style: TextStyle(
-              shadows: [Shadow(color: AppTheme.logoGreen, blurRadius: 5)],
+          title: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+              child: Row(
+                children: [
+                  Text(
+                    gameId,
+                    style: const TextStyle(
+                      shadows: [
+                        Shadow(color: AppTheme.logoGreen, blurRadius: 5),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  if (isWindows) ...[
+                    IconButton(
+                      tooltip: 'Zoom out',
+                      icon: const Icon(Icons.zoom_out),
+                      onPressed: _zoomPercent > 75
+                          ? () => setState(() => _zoomPercent -= 5)
+                          : null,
+                    ),
+                    Text('$_zoomPercent%'),
+                    IconButton(
+                      tooltip: 'Zoom in',
+                      icon: const Icon(Icons.zoom_in),
+                      onPressed: _zoomPercent < 200
+                          ? () => setState(() => _zoomPercent += 5)
+                          : null,
+                    ),
+                  ],
+                  if (isCorrect && !showComplete)
+                    StyledButtonWidget(
+                      valueIcon: const Icon(
+                        Icons.start,
+                        color: AppTheme.logoGreen,
+                      ),
+                      onPressed: () => provider.setPopup(true),
+                      marginVertical: 5,
+                      paddingHorizontal: 10,
+                    ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            if (isCorrect && !showComplete)
-              StyledButtonWidget(
-                valueIcon: Icon(Icons.start, color: AppTheme.logoGreen),
-                onPressed: () => provider.setPopup(true),
-                marginVertical: 5,
-                paddingHorizontal: 10,
-              ),
-          ],
         ),
         body: Stack(
           fit: StackFit.expand,
           children: [
             Stack(
               children: [
-                SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(
-                    insetPadding,
-                    insetPadding + panelHeight,
-                    insetPadding,
-                    insetPadding + bottomInset + (containerHeight * 2),
+                Positioned.fill(
+                  top: panelHeight + padding,
+                  bottom: bottomInset,
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(
+                      insetPadding,
+                      insetPadding,
+                      insetPadding,
+                      insetPadding + suggestionInset,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: isWindows
+                              ? double.infinity
+                              : desktopContentWidth,
+                        ),
+                        child: CryptogramGridWidget(
+                          gameKey: key,
+                          gameId: gameId,
+                          zoomPercent: isWindows
+                              ? _zoomPercent * 140 ~/ 100
+                              : _zoomPercent,
+                          extraRowGap: isWindows
+                              ? const PuzzleGeometry(140).rowHeight * 0.25
+                              : 0,
+                          bottomInset: suggestionInset,
+                          centerRows: isWindows,
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Column(children: [CryptogramGridWidget(gameKey: key)]),
                 ),
                 if (showSuggestions)
                   AnimatedBuilder(
@@ -88,16 +152,34 @@ class GamePageLayout extends ConsumerWidget {
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: GamePageHeaderWidget(gameKey: key),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: desktopContentWidth,
+                      ),
+                      child: GamePageHeaderWidget(gameKey: key),
+                    ),
+                  ),
                 ),
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: addKeyboard
+                  child: widget.addKeyboard
                       ? KeyboardWidget(gameKey: key, language: language)
-                      : AvailableCommandsWidget(
-                          commands: KeyboardShortcutsWidget.commands(language),
+                      : isWindows
+                      ? _WindowsGameControls(language: language)
+                      : Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: desktopContentWidth,
+                            ),
+                            child: AvailableCommandsWidget(
+                              commands: KeyboardShortcutsWidget.commands(
+                                language,
+                              ),
+                            ),
+                          ),
                         ),
                 ),
               ],
@@ -108,12 +190,68 @@ class GamePageLayout extends ConsumerWidget {
         ),
       ),
     );
-    return addKeyboard
+    return widget.addKeyboard
         ? game
         : KeyboardShortcutsWidget(
             gameKey: key,
             language: language,
+            confirmReset: isWindows,
             child: game,
           );
+  }
+}
+
+class _WindowsGameControls extends StatelessWidget {
+  final Language language;
+
+  const _WindowsGameControls({required this.language});
+
+  @override
+  Widget build(BuildContext context) {
+    final commands = KeyboardShortcutsWidget.commands(language);
+    final help = [
+      for (final entry in commands.entries)
+        '${entry.value == 'Type Ñ' ? 'Ñ' : entry.value}: '
+            '${entry.key == 'Left / Right' ? '←/→' : entry.key.replaceAll(' + ', '+')}',
+    ].join(' | ');
+    final buttonStyle = OutlinedButton.styleFrom(
+      foregroundColor: Colors.white,
+      side: const BorderSide(color: AppTheme.logoGreen),
+    );
+
+    return SizedBox(
+      height: desktopCommandsHeight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: insetPadding),
+        child: Row(
+          children: [
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  help,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              style: buttonStyle,
+              onPressed: () => Actions.invoke(context, UndoCellIntent()),
+              child: const Text('Undo'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              style: buttonStyle,
+              onPressed: () => Actions.invoke(context, ResetCellIntent()),
+              child: const Text('Reset'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -35,11 +35,7 @@ class GameSetup {
       }
     }
 
-    return Game(
-      quote: quote,
-      cells: newCells.calculateRows(gameId),
-      gameMode: gameMode,
-    );
+    return Game(quote: quote, cells: newCells, gameMode: gameMode);
   }
 }
 

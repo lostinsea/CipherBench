@@ -21,11 +21,17 @@ class AllQuotesTab extends ConsumerWidget {
       itemBuilder: (context, index) {
         final reverseIndex = quotes.length - 1 - index;
         final quote = quotes[reverseIndex];
-        return QuoteCard(
-          quote: quote,
-          color: colors[index % colors.length],
-          onFavoriteToggle: () =>
-              ref.read(quoteListProvider.notifier).toggleFavorite(reverseIndex),
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: desktopContentWidth),
+            child: QuoteCard(
+              quote: quote,
+              color: colors[index % colors.length],
+              onFavoriteToggle: () => ref
+                  .read(quoteListProvider.notifier)
+                  .toggleFavorite(reverseIndex),
+            ),
+          ),
         );
       },
     );
