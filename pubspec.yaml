@@ -1,5 +1,5 @@
 name: scioly_codebusters
-description: "Scioly Codebusters is the ultimate codebusters prep app! It allows you to practice over a thousand different quotes with aristocrats and patristocrats so you can level up your codebusting skills! For hobbyists and beginners, enjoy the non-scioly mode and hints to help you solve each cipher.\nThis is the most versatile app to practice patristocrats, the hardest codebusters cipher."
+description: "CipherBench is a Windows desktop app for Science Olympiad Codebusters practice, with aristocrats, patristocrats, xenocrypts, and cipher-solving tools."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -65,7 +65,7 @@ flutter_launcher_icons:
     theme_color: "#000000"
   windows:
     generate: true
-    image_path: "assets/image/scioly-logo.png"
+    image_path: "assets/image/cipherbench-mark.png"
     icon_size: 48 # min:48, max:256, default: 48
   macos:
     generate: true

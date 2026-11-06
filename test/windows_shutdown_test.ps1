@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
-    $ExecutablePath = Join-Path $PSScriptRoot '..\build\windows\x64\runner\Release\scioly_codebusters.exe'
+    $ExecutablePath = Join-Path $PSScriptRoot '..\build\windows\x64\runner\Release\cipherbench.exe'
 }
 
 Add-Type @'

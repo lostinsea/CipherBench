@@ -31,9 +31,27 @@ Future<void> _pumpHomePage(WidgetTester tester, Size size) async {
 
 Finder _homeLogo() => find.byType(HomeLogo);
 
+void _expectLogoAsset(WidgetTester tester, String path) {
+  final image = tester.widget<Image>(
+    find.descendant(of: _homeLogo(), matching: find.byType(Image)),
+  );
+  expect(
+    image.image,
+    isA<AssetImage>().having((asset) => asset.assetName, 'assetName', path),
+  );
+}
+
 Finder _button(String label) {
   return find.ancestor(of: find.text(label), matching: find.byType(InkWell));
 }
+
+const _homeButtonLabels = [
+  'Aristocrat',
+  'Patristocrat',
+  'Xenocrypt',
+  'View Dictionary',
+  'View Solved Puzzles',
+];
 
 void main() {
   setUpAll(() async {
@@ -69,17 +87,13 @@ void main() {
         expect(logoRect.size, const Size(96, 96));
         expect(logoRect.left, 26);
         expect(logoRect.bottom, 699);
+        _expectLogoAsset(tester, 'assets/image/cipherbench-mark.png');
 
-        for (final label in const [
-          'Aristocrat',
-          'Patristocrat',
-          'Xenocrypt',
-          'View Dictionary',
-          'View Solved Puzzles',
-        ]) {
+        for (final label in _homeButtonLabels) {
           expect(_button(label), findsOneWidget);
           expect(tester.getRect(_button(label)).overlaps(logoRect), isFalse);
         }
+        expect(find.text('WINDOWS DESKTOP'), findsNothing);
         expect(tester.takeException(), isNull);
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -98,15 +112,10 @@ void main() {
         expect(logoRect.left, 26);
         expect(logoRect.bottom, 579);
 
-        for (final label in const [
-          'Aristocrat',
-          'Patristocrat',
-          'Xenocrypt',
-          'View Dictionary',
-          'View Solved Puzzles',
-        ]) {
+        for (final label in _homeButtonLabels) {
           expect(tester.getRect(_button(label)).overlaps(logoRect), isFalse);
         }
+        expect(find.text('WINDOWS DESKTOP'), findsNothing);
         expect(tester.takeException(), isNull);
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -124,6 +133,7 @@ void main() {
           expect(logoRect.size, const Size(400, 400));
           expect(logoRect.center.dx, 400);
           expect(logoRect.top, 111);
+          _expectLogoAsset(tester, 'assets/image/scioly-logo.png');
           expect(
             tester.getRect(_button('Aristocrat')).top,
             greaterThan(logoRect.bottom),

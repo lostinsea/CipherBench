@@ -15,6 +15,14 @@ class HomeLogo extends StatelessWidget {
         ? (size.width / 2).clamp(0.0, size.height / 3)
         : size.width / 2;
     final logoSize = baseLogoSize * (isWindows ? 0.4 : 1.0);
+    if (isWindows) {
+      return Image.asset(
+        'assets/image/cipherbench-mark.png',
+        width: logoSize,
+        height: logoSize,
+        fit: BoxFit.contain,
+      );
+    }
     return Container(
       width: logoSize,
       height: logoSize,

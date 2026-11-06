@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">CipherBench: an open C and a highlighted cipher tile</title>
+  <rect x="2" y="2" width="92" height="92" rx="20" fill="#102336"/>
+  <path d="M70 27C57 16 35 21 27 37C19 53 28 73 47 76C56 78 64 74 70 69" fill="none" stroke="#52D4C5" stroke-width="9" stroke-linecap="round"/>
+  <path d="m73 42 9 9-9 9-9-9z" fill="#F5BA53"/>
+</svg>

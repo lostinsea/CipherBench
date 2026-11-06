@@ -31,13 +31,14 @@ struct InstanceMutex {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  constexpr wchar_t kWindowTitle[] = L"Scioly Codebusters";
+  constexpr wchar_t kWindowTitle[] = L"CipherBench";
+  constexpr wchar_t kLegacyWindowTitle[] = L"Scioly Codebusters";
   InstanceMutex mutex{
       ::CreateMutexW(nullptr, TRUE, L"Local\\SciolyCodebustersSingleInstance"),
       false};
   const DWORD mutex_error = ::GetLastError();
   if (mutex.handle == nullptr) {
-    const std::wstring error = L"Could not start Codebusters (Windows error " +
+    const std::wstring error = L"Could not start CipherBench (Windows error " +
                                std::to_wstring(mutex_error) + L").";
     ::MessageBoxW(nullptr, error.c_str(), kWindowTitle, MB_OK | MB_ICONERROR);
     return EXIT_FAILURE;
@@ -46,6 +47,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   if (mutex_error == ERROR_ALREADY_EXISTS) {
     for (int attempt = 0; attempt < 100; ++attempt) {
       HWND existing_window = Win32Window::FindExistingWindow(kWindowTitle);
+      if (existing_window == nullptr) {
+        existing_window = Win32Window::FindExistingWindow(kLegacyWindowTitle);
+      }
       if (existing_window != nullptr && ::IsWindowVisible(existing_window) &&
           ::GetPropW(existing_window, Win32Window::kClosingWindowProperty) ==
               nullptr) {
@@ -77,7 +81,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     if (!mutex.owned) {
       mutex.Close();
       ::MessageBoxW(nullptr,
-                    L"Codebusters is already running, but its window has not "
+                    L"Another instance is already running, but its window has not "
                     L"appeared. Close the other instance if it stays hidden.",
                     kWindowTitle, MB_OK | MB_ICONERROR);
       return EXIT_FAILURE;

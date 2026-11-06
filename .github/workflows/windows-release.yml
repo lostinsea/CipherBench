@@ -1,0 +1,114 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: Fetch locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Test Windows layout
+        run: flutter test test/home_page_logo_test.dart test/puzzle_layout_test.dart --no-pub
+
+      - name: Build Windows executable
+        run: flutter build windows --release --no-pub
+
+      - name: Check Windows startup and shutdown
+        shell: pwsh
+        run: |
+          $bundle = 'build\windows\x64\runner\Release'
+          foreach ($item in @('cipherbench.exe', 'flutter_windows.dll', 'data\app.so', 'data\flutter_assets\NOTICES.Z')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $bundle $item) -PathType Leaf)) {
+              throw "Missing Windows release file: $item"
+            }
+          }
+          powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File test\windows_shutdown_test.ps1 -ExecutablePath (Join-Path $bundle 'cipherbench.exe') -WarmupSeconds 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package approved Windows release
+        if: startsWith(github.ref, 'refs/tags/v') && vars.WINDOWS_RELEASE_APPROVED == 'true'
+        shell: pwsh
+        run: |
+          foreach ($notice in @('LICENSE', 'CREDITS.md', 'THIRD_PARTY_NOTICES.md', 'licenses\OFL-JetBrainsMono.txt')) {
+            if (-not (Test-Path -LiteralPath $notice -PathType Leaf)) {
+              throw "Release notice missing: $notice"
+            }
+          }
+          if (Select-String -LiteralPath 'THIRD_PARTY_NOTICES.md' -Pattern 'RELEASE_BLOCKED' -SimpleMatch -Quiet) {
+            throw 'Verify and document bundled asset rights before packaging a release.'
+          }
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            throw "Release tag must use vMAJOR.MINOR.PATCH: $tag"
+          }
+          $version = $Matches[1]
+          $pubspec = [regex]::Match((Get-Content -LiteralPath 'pubspec.yaml' -Raw), '(?m)^version: (\d+\.\d+\.\d+)(?:\+\d+)?\r?$')
+          $installer = [regex]::Match((Get-Content -LiteralPath 'installer\CipherBench.iss' -Raw), '(?m)^#define AppVersion "(\d+\.\d+\.\d+)"\r?$')
+          if (-not $pubspec.Success -or -not $installer.Success -or $pubspec.Groups[1].Value -ne $version -or $installer.Groups[1].Value -ne $version) {
+            throw "Release tag $tag must match the versions in pubspec.yaml and installer\CipherBench.iss."
+          }
+          $bundle = 'build\windows\x64\runner\Release'
+          if (@(Get-ChildItem -LiteralPath $bundle -Filter '*.exe' -File).Count -ne 1) {
+            throw 'The Windows bundle must contain exactly one executable.'
+          }
+          & .\installer\stage-runtime.ps1 -BundlePath $bundle
+          Copy-Item -LiteralPath @('LICENSE', 'CREDITS.md', 'THIRD_PARTY_NOTICES.md') -Destination $bundle
+          New-Item -ItemType Directory -Path (Join-Path $bundle 'licenses') -Force | Out-Null
+          Copy-Item -LiteralPath 'licenses\OFL-JetBrainsMono.txt' -Destination (Join-Path $bundle 'licenses')
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          $archive = 'dist\CipherBench-Windows-x64.zip'
+          Compress-Archive -Path "$bundle\*" -DestinationPath $archive
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  CipherBench-Windows-x64.zip" | Set-Content -Path "$archive.sha256" -Encoding ascii
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: startsWith(github.ref, 'refs/tags/v') && vars.WINDOWS_RELEASE_APPROVED == 'true'
+        with:
+          name: CipherBench-Windows-x64
+          path: |
+            dist/CipherBench-Windows-x64.zip
+            dist/CipherBench-Windows-x64.zip.sha256
+          if-no-files-found: error
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v') && vars.WINDOWS_RELEASE_APPROVED == 'true'
+    needs: build
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: CipherBench-Windows-x64
+          path: dist
+
+      - name: Create draft GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            'dist\CipherBench-Windows-x64.zip' `
+            'dist\CipherBench-Windows-x64.zip.sha256' `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "CipherBench $env:GITHUB_REF_NAME" `
+            --generate-notes --draft --verify-tag
