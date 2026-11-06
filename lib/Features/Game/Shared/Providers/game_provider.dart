@@ -76,6 +76,7 @@ class GameProvider extends FamilyNotifier<Game, String> {
         .scrollToSelected(
           state.cells[index].row *
               (containerHeight + 3 * padding + 2 * decorationHeight),
+          bottomInset: usePhysicalKeyboard ? desktopCommandsHeight : keyboardH,
         );
   }
 

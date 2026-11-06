@@ -6,26 +6,25 @@ import 'package:scioly_codebusters/library.dart';
 class KeyboardShortcutsWidget extends ConsumerWidget {
   final String gameKey;
   final Language language;
+  final Widget child;
+
   const KeyboardShortcutsWidget({
     super.key,
     required this.gameKey,
     required this.language,
+    required this.child,
   });
+
+  static Map<String, String> commands(Language language) => {
+    "Ctrl + Z": "Undo",
+    "Ctrl + Backspace": "Reset",
+    "Backspace": "Erase",
+    "Left / Right": "Move",
+    if (language == Language.spanish) "Shift + N": "Type Ñ",
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Map<String, String> commands = {
-      "Ctrl + Z": "Undo last action",
-      "Ctrl + Backspace": "Reset",
-      "Backspace": "Remove cur val",
-      "Left Arrow Key": "Move to left cell",
-      "Right Arrow Key": "Move to right cell",
-    };
-
-    if (language == Language.spanish) {
-      commands["Shift + n"] = "Type ñ";
-    }
-
     return Shortcuts(
       // Maps ctrl + Z and cmd + Z to undo last keyboard action
       // Maps ctrl + backspace to reset
@@ -47,8 +46,9 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
         SingleActivator(LogicalKeyboardKey.arrowRight): MoveCellIntent(
           key: '>',
         ),
-        SingleActivator(LogicalKeyboardKey.keyN, shift: true):
-            EnnePressIntent(),
+        if (language == Language.spanish)
+          SingleActivator(LogicalKeyboardKey.keyN, shift: true):
+              EnnePressIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -68,27 +68,25 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
               // Takes care of normal key presses (a-z)
               onKeyEvent: (FocusNode node, KeyEvent event) {
                 if (event is KeyDownEvent) {
-                  final String key = event.logicalKey.keyLabel;
+                  final String key = event.logicalKey.keyLabel.toUpperCase();
                   if (key.length == 1 &&
                       getAlphabet(language).contains(key) &&
                       // Make sure ctrl and cmd are not pressed down
                       !HardwareKeyboard.instance.isControlPressed &&
                       !HardwareKeyboard.instance.isMetaPressed) {
                     // If typing ñ, ignore event
-                    if (key.toUpperCase() == 'N' &&
+                    if (language == Language.spanish &&
+                        key == 'N' &&
                         HardwareKeyboard.instance.isShiftPressed) {
                       return KeyEventResult.ignored;
                     }
-                    Actions.invoke(
-                      innerContext,
-                      KeyPressIntent(key: key.toUpperCase()),
-                    );
+                    Actions.invoke(innerContext, KeyPressIntent(key: key));
                     return KeyEventResult.handled;
                   }
                 }
                 return KeyEventResult.ignored;
               },
-              child: AvailableCommandsWidget(commands: commands),
+              child: child,
             );
           },
         ),

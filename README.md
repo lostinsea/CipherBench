@@ -40,6 +40,10 @@ You can **download the app for free** on the App Store:
 
 > 🔗 https://apps.apple.com/us/app/scioly-codebusters/id6642683299
 
+### Windows (local build)
+
+With Flutter and Visual Studio's **Desktop development with C++** workload installed, run `flutter pub get` and `flutter build windows --release` from this repository. Open `build\windows\x64\runner\Release\scioly_codebusters.exe` to play. Keep the entire `Release` folder together: the executable needs its neighboring DLLs and `data` directory. The non-resizable Windows window targets a 1100 × 720 client area (or fits the monitor's work area at its current DPI). Play using a physical keyboard; the on-screen game keyboard is not shown on Windows. The mobile app retains its on-screen keyboard.
+
 ---
 
 ## 🛠 Tech Stack

@@ -1,5 +1,6 @@
 #include "win32_window.h"
 
+#include <algorithm>
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
@@ -134,10 +135,31 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
+  MONITORINFO monitor_info{sizeof(monitor_info)};
+  if (!GetMonitorInfo(monitor, &monitor_info)) {
+    return false;
+  }
+
+  const DWORD window_style =
+      WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+  RECT frame{0, 0, Scale(size.width, scale_factor),
+             Scale(size.height, scale_factor)};
+  if (!AdjustWindowRectExForDpi(&frame, window_style, FALSE, 0, dpi)) {
+    return false;
+  }
+  const RECT& work_area = monitor_info.rcWork;
+  const int work_width = work_area.right - work_area.left;
+  const int work_height = work_area.bottom - work_area.top;
+  const int width =
+      std::min(static_cast<int>(frame.right - frame.left), work_width);
+  const int height =
+      std::min(static_cast<int>(frame.bottom - frame.top), work_height);
+  const int x = work_area.left + (work_width - width) / 2;
+  const int y = work_area.top + (work_height - height) / 2;
+
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
-      Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, scale_factor), Scale(size.height, scale_factor),
+      window_class, title.c_str(), window_style,
+      x, y, width, height,
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
   if (!window) {
@@ -188,12 +210,23 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
 
     case WM_DPICHANGED: {
-      auto newRectSize = reinterpret_cast<RECT*>(lparam);
-      LONG newWidth = newRectSize->right - newRectSize->left;
-      LONG newHeight = newRectSize->bottom - newRectSize->top;
-
-      SetWindowPos(hwnd, nullptr, newRectSize->left, newRectSize->top, newWidth,
-                   newHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+      const auto* suggested = reinterpret_cast<const RECT*>(lparam);
+      MONITORINFO monitor_info{sizeof(monitor_info)};
+      HMONITOR monitor = MonitorFromRect(suggested, MONITOR_DEFAULTTONEAREST);
+      if (!GetMonitorInfo(monitor, &monitor_info)) {
+        return 0;
+      }
+      const RECT& work_area = monitor_info.rcWork;
+      const int width = std::min(suggested->right - suggested->left,
+                                 work_area.right - work_area.left);
+      const int height = std::min(suggested->bottom - suggested->top,
+                                  work_area.bottom - work_area.top);
+      const int x = std::clamp(suggested->left, work_area.left,
+                               work_area.right - width);
+      const int y = std::clamp(suggested->top, work_area.top,
+                               work_area.bottom - height);
+      SetWindowPos(hwnd, nullptr, x, y, width, height,
+                   SWP_NOZORDER | SWP_NOACTIVATE);
 
       return 0;
     }

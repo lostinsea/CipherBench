@@ -7,11 +7,13 @@ class DictionaryPopoverWidget extends ConsumerWidget {
   final String gameId;
   final String dictionaryId;
   final GameMode gameMode;
+  final double bottomInset;
   const DictionaryPopoverWidget({
     super.key,
     required this.gameId,
     required this.dictionaryId,
     required this.gameMode,
+    required this.bottomInset,
   });
 
   @override
@@ -31,7 +33,7 @@ class DictionaryPopoverWidget extends ConsumerWidget {
     Color suggestionColor = Colors.lightBlueAccent;
 
     return Positioned(
-      bottom: keyboardH,
+      bottom: bottomInset,
       left: 0,
       right: 0,
       child: Scrollbar(

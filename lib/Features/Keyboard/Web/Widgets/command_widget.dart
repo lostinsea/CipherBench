@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class CommandWidget extends StatelessWidget {
-  String command;
-  String description;
-  CommandWidget({super.key, required this.command, required this.description});
+  final String command;
+  final String description;
+  const CommandWidget({
+    super.key,
+    required this.command,
+    required this.description,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxWidth: 350),
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       padding: EdgeInsets.all(5.0),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

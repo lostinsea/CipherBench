@@ -13,12 +13,12 @@ class ScrollControllerNotifier
   }
 
   // alter algorithm for if the dicitionary popover is there
-  void scrollToSelected(double position) {
+  void scrollToSelected(double position, {double? bottomInset}) {
     if (!state.hasClients) return;
     var scrollHeight =
         state.position.viewportDimension -
         (containerHeight + 2 * decorationHeight) -
-        keyboardH -
+        (bottomInset ?? keyboardH) -
         panelHeight -
         containerHeight * 2;
     if ((position - state.offset) > scrollHeight) {

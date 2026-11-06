@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -30,9 +31,10 @@ class _MatrixBackgroundWidgetState extends ConsumerState<MatrixBackgroundWidget>
   }
 
   void _startGeneratingLines() {
-    _lineSpawnTimer = Timer.periodic(const Duration(milliseconds: 200), (
-      timer,
-    ) {
+    final interval = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+        ? const Duration(milliseconds: 400)
+        : const Duration(milliseconds: 200);
+    _lineSpawnTimer = Timer.periodic(interval, (timer) {
       if (!mounted) {
         timer.cancel();
         return;

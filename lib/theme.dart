@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
+
 //import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Button dimensions for game controls (new quote, etc)
@@ -15,9 +16,8 @@ const containerFS = 15.0;
 const decorationTextFS = 10.0;
 const padding = 4.0;
 // might need to change if screen size changes (rotation)
-final screenW =
-    GameSetup.width; // use screenW/H for responsive check + theme and
-final screenH = GameSetup.height; // GameSetup for all other
+double get screenW => GameSetup.width;
+double get screenH => GameSetup.height;
 double get maxLength => (screenW * 0.9) - insetPadding * 2;
 //styling for keyboard
 const double spacing = 4;
@@ -27,7 +27,8 @@ double get safeWidth => screenW - horizontalBuffer;
 final maxKeysInRow = 10;
 double get keyWidth =>
     (safeWidth - (maxKeysInRow - 1) * spacing) / maxKeysInRow;
-final keyboardH = screenH * 0.25; // Height of the keyboard widget
+double get keyboardH => screenH * 0.25; // Height of the keyboard widget
+const double desktopCommandsHeight = 56;
 // dictionary styling
 const borderWidth = 2.0;
 const searchPadding = 12.0;

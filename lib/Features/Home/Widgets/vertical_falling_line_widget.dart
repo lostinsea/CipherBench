@@ -15,6 +15,7 @@ class _VerticalFallingLineState extends ConsumerState<VerticalFallingLine>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animationController;
   late final Animation<double> _fallingAnimation;
+  late final VerticalText _painter;
   final double fontsize = 10;
   final textBuffer = 100;
 
@@ -40,29 +41,24 @@ class _VerticalFallingLineState extends ConsumerState<VerticalFallingLine>
       CurvedAnimation(parent: _animationController, curve: Curves.linear),
     );
 
+    _painter = VerticalText(
+      text: text,
+      fontsize: fontsize,
+      position: _fallingAnimation,
+      x: x,
+    );
     _animationController.repeat();
   }
 
   @override
   void dispose() {
+    _painter.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: VerticalText(
-            text: text,
-            fontsize: fontsize,
-            y: _fallingAnimation.value,
-            x: x,
-          ),
-        );
-      },
-    );
+    return CustomPaint(painter: _painter);
   }
 }

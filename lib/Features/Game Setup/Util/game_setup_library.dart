@@ -1,4 +1,5 @@
 import 'package:scioly_codebusters/library.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class GameSetup {
@@ -33,6 +34,7 @@ class GameSetup {
         );
       }
     }
+
     return Game(
       quote: quote,
       cells: newCells.calculateRows(gameId),
@@ -40,3 +42,7 @@ class GameSetup {
     );
   }
 }
+
+bool get usePhysicalKeyboard =>
+    (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) ||
+    GameSetup.width > mobileMaxWidth;

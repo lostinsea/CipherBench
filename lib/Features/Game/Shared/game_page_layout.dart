@@ -33,7 +33,8 @@ class GamePageLayout extends ConsumerWidget {
       gameProvider(key).select((s) => s.showSuggestions),
     );
 
-    return Container(
+    final bottomInset = addKeyboard ? keyboardH : desktopCommandsHeight;
+    final game = Container(
       constraints: BoxConstraints.tightForFinite(height: screenH),
       decoration: AppTheme.backgroundGradient,
       child: Scaffold(
@@ -67,9 +68,7 @@ class GamePageLayout extends ConsumerWidget {
                     insetPadding,
                     insetPadding + panelHeight,
                     insetPadding,
-                    insetPadding +
-                        keyboardH +
-                        (containerHeight * 2), // Add enough bottom padding
+                    insetPadding + bottomInset + (containerHeight * 2),
                   ),
                   child: Column(children: [CryptogramGridWidget(gameKey: key)]),
                 ),
@@ -81,6 +80,7 @@ class GamePageLayout extends ConsumerWidget {
                         gameId: gameId,
                         gameMode: gameMode,
                         dictionaryId: language.name,
+                        bottomInset: bottomInset,
                       );
                     },
                   ),
@@ -96,9 +96,8 @@ class GamePageLayout extends ConsumerWidget {
                   bottom: 0,
                   child: addKeyboard
                       ? KeyboardWidget(gameKey: key, language: language)
-                      : KeyboardShortcutsWidget(
-                          gameKey: key,
-                          language: language,
+                      : AvailableCommandsWidget(
+                          commands: KeyboardShortcutsWidget.commands(language),
                         ),
                 ),
               ],
@@ -109,5 +108,12 @@ class GamePageLayout extends ConsumerWidget {
         ),
       ),
     );
+    return addKeyboard
+        ? game
+        : KeyboardShortcutsWidget(
+            gameKey: key,
+            language: language,
+            child: game,
+          );
   }
 }

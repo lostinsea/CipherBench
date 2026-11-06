@@ -9,7 +9,7 @@ class AudioController {
 
   SoLoud? _soloud;
 
-  SoundHandle? curHandle;
+  SoundHandle? _bgHandle;
   bool bgPlaying = true;
   double initVol = 1;
 
@@ -26,13 +26,13 @@ class AudioController {
 
   Future<void> playSound(String assetKey) async {
     final source = await _soloud!.loadAsset(assetKey);
-    curHandle = await _soloud!.play(source);
+    await _soloud!.play(source);
   }
 
   Future<void> playBgSound() async {
-    if (curHandle == null) {
+    if (_bgHandle == null) {
       final source = await _soloud!.loadAsset(bgMusicFile);
-      curHandle = await _soloud!.play(source, looping: true);
+      _bgHandle = await _soloud!.play(source, looping: true);
       setBgVolume(initVol);
       if (!bgPlaying) {
         toggleBgSound(updateState: false);
@@ -41,8 +41,8 @@ class AudioController {
   }
 
   void toggleBgSound({bool updateState = true}) async {
-    if (curHandle != null) {
-      _soloud!.pauseSwitch(curHandle ?? SoundHandle(0));
+    if (_bgHandle != null) {
+      _soloud!.pauseSwitch(_bgHandle!);
       if (updateState) {
         bgPlaying = !bgPlaying;
         await updateSettingBox();
@@ -58,8 +58,8 @@ class AudioController {
   }
 
   void setBgVolume(double vol) {
-    if (curHandle != null) {
-      _soloud!.setVolume(curHandle ?? SoundHandle(0), vol);
+    if (_bgHandle != null) {
+      _soloud!.setVolume(_bgHandle!, vol);
     }
   }
 

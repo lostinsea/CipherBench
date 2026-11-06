@@ -16,19 +16,12 @@ class GamePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    GameSetup.init(context);
     final GamePageConfig config = GamePageConfig(
       gameId: gameId,
       gameMode: gameMode,
       language: language,
     );
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (GameSetup.width <= mobileMaxWidth) {
-          return GamePageLayout(config: config);
-        } else {
-          return GamePageLayout(config: config, addKeyboard: false);
-        }
-      },
-    );
+    return GamePageLayout(config: config, addKeyboard: !usePhysicalKeyboard);
   }
 }
