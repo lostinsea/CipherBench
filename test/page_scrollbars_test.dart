@@ -50,6 +50,16 @@ class _ScrollablePatternMapProvider extends PatternMapProvider {
   ]);
 }
 
+class _PluralPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String arg) => arg == 'english'
+      ? PatternMap.fromList(
+          ['DREAM', 'LUNCH', 'APPLES', 'CHILDREN'],
+          regularPlurals: ['DREAMS', 'LUNCHES', 'APPLES'],
+        )
+      : PatternMap.fromList(['HOLA']);
+}
+
 Finder _dictionaryScrollbar(String dictionaryId) => find.descendant(
   of: find.byWidgetPredicate(
     (widget) => widget is DictionaryTab && widget.dictionaryId == dictionaryId,
@@ -80,7 +90,6 @@ Future<void> _dragThumb(WidgetTester tester, Finder finder) async {
 Future<void> _checkStableDictionaryRange(
   WidgetTester tester,
   String language,
-  List<String> words,
 ) async {
   final scrollbarFinder = _dictionaryScrollbar(language);
   final controller = tester.widget<Scrollbar>(scrollbarFinder).controller!;
@@ -109,7 +118,15 @@ Future<void> _checkStableDictionaryRange(
     controller.position.maxScrollExtent,
     closeTo(initialExtent, initialExtent * 0.02),
   );
-  final lastEntryIndex = PatternMap.fromList(words).map.length - 1;
+  final lastEntryIndex =
+      (language == 'english'
+          ? PatternMap.fromList([
+              ...englishWordList,
+              ...englishIrregularPlurals,
+              ...englishIndependentHeadwords,
+            ], regularPlurals: englishRegularPlurals).visibleEntries().length
+          : PatternMap.fromList(spanishWordList).map.length) -
+      1;
   expect(
     tester
         .widgetList<DictionaryEntryWidget>(find.byType(DictionaryEntryWidget))
@@ -134,11 +151,16 @@ void main() {
           ],
           child: MaterialApp(
             theme: AppTheme.theme,
-            home: const DictionaryPage(),
+            initialRoute: '/dictionary',
+            routes: {
+              '/': (_) => const SizedBox.shrink(),
+              '/dictionary': (_) => const DictionaryPage(),
+            },
           ),
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byTooltip('Back'), findsOneWidget);
 
       double? narrowViewportWidth;
       double? narrowWordRight;
@@ -155,9 +177,15 @@ void main() {
           of: find.byType(DictionaryEntryWidget),
           matching: find.byType(DictionaryWordWidget),
         );
-        final rightmostWord = tester
+        final wordRects = tester
             .widgetList<DictionaryWordWidget>(words)
-            .map((word) => tester.getRect(find.byKey(word.wordKey)).right)
+            .map((word) => tester.getRect(find.byKey(word.wordKey)))
+            .toList();
+        final leftmostWord = wordRects
+            .map((rect) => rect.left)
+            .reduce((a, b) => a < b ? a : b);
+        final rightmostWord = wordRects
+            .map((rect) => rect.right)
             .reduce((a, b) => a > b ? a : b);
         final scrollbarRight = tester.getRect(scrollbarFinder).right;
         expect(tester.getRect(scrollbarFinder).left, windowsScreenInset);
@@ -166,6 +194,25 @@ void main() {
         ).crossAxisMargin!;
         final gap = scrollbarRight - margin - 6 - rightmostWord;
         expect(gap, inInclusiveRange(0, 120));
+        expect(tester.widget<AppBar>(find.byType(AppBar)).bottom, isNull);
+        expect(
+          tester.getRect(find.text('Pattern Dictionary')).center.dy,
+          closeTo(tester.getRect(find.text('English')).center.dy, 1),
+        );
+        expect(
+          tester.getRect(find.text('Show regular plurals')).left,
+          closeTo(leftmostWord, 1),
+        );
+        final labelBounds = tester.getRect(find.text('Show regular plurals'));
+        final switchBounds = tester.getRect(find.byType(Switch));
+        final searchBounds = tester.getRect(find.byType(TextField).first);
+        expect(switchBounds.left - labelBounds.right, greaterThanOrEqualTo(11));
+        expect(
+          searchBounds.left - switchBounds.right,
+          greaterThanOrEqualTo(31),
+        );
+        expect(searchBounds.width, inInclusiveRange(270, 600));
+        expect(searchBounds.right, closeTo(scrollbarRight - margin, 1));
         expect(size.width - (scrollbarRight - margin), windowsScreenInset + 24);
         if (narrowViewportWidth == null) {
           narrowViewportWidth = tester.getRect(scrollbarFinder).width;
@@ -185,6 +232,79 @@ void main() {
       await tester.tap(find.text('Spanish'));
       await tester.pumpAndSettle();
       await _dragThumb(tester, _dictionaryScrollbar('spanish'));
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(Switch), findsNothing);
+      expect(tester.getSize(find.byType(TextField)).width, closeTo(600, 1));
+      expect(
+        tester.getRect(find.byType(TextField)).right,
+        closeTo(tester.getRect(_dictionaryScrollbar('spanish')).right - 24, 1),
+      );
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  });
+
+  testWidgets('English Dictionary shows regular plurals only when enabled', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            patternMapProvider.overrideWith(_PluralPatternMapProvider.new),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.theme,
+            home: const DictionaryPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final toggle = find.byType(Switch);
+      final plural = find.byWidgetPredicate(
+        (widget) => widget is DictionaryWordWidget && widget.word == 'DREAMS',
+      );
+      final existing = find.byWidgetPredicate(
+        (widget) => widget is DictionaryWordWidget && widget.word == 'APPLES',
+      );
+      expect(find.text('Show regular plurals'), findsOneWidget);
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(plural, findsNothing);
+      expect(existing, findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(existing, findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'DREAMS');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      for (var attempt = 0; attempt < 15; attempt++) {
+        await tester.pump(const Duration(milliseconds: 600));
+      }
+      expect(plural, findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(plural, findsNothing);
+      expect(existing, findsOneWidget);
+      await tester.tap(find.text('Spanish'));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (widget) =>
+                widget is DictionaryTab && widget.dictionaryId == 'spanish',
+          ),
+          matching: toggle,
+        ),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -219,7 +339,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _savePreview(tester, 'CIPHERBENCH_DICTIONARY_PREVIEW');
-      await _checkStableDictionaryRange(tester, 'english', englishWordList);
+      await _checkStableDictionaryRange(tester, 'english');
       tester
           .widget<Scrollbar>(_dictionaryScrollbar('english'))
           .controller!
@@ -229,7 +349,7 @@ void main() {
       await _savePreview(tester, 'CIPHERBENCH_DICTIONARY_WIDE_PREVIEW');
       await tester.tap(find.text('Spanish'));
       await tester.pumpAndSettle();
-      await _checkStableDictionaryRange(tester, 'spanish', spanishWordList);
+      await _checkStableDictionaryRange(tester, 'spanish');
     } finally {
       debugDefaultTargetPlatformOverride = null;
       tester.view.resetPhysicalSize();
@@ -259,7 +379,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await _checkStableDictionaryRange(tester, 'english', englishWordList);
+      await _checkStableDictionaryRange(tester, 'english');
     } finally {
       debugDefaultTargetPlatformOverride = null;
       tester.view.resetPhysicalSize();
@@ -284,8 +404,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       final target = PatternMap.fromList(
-        englishWordList,
-      ).map.entries.last.value.last;
+        [
+          ...englishWordList,
+          ...englishIrregularPlurals,
+          ...englishIndependentHeadwords,
+        ],
+        regularPlurals: englishRegularPlurals,
+      ).visibleEntries().last.value.last;
       await tester.enterText(find.byType(TextField).first, target);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       for (var attempt = 0; attempt < 15; attempt++) {
@@ -314,9 +439,7 @@ void main() {
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1;
     try {
-      if (Platform.environment.containsKey('CIPHERBENCH_STATS_PREVIEW')) {
-        await _loadPreviewFonts();
-      }
+      await _loadPreviewFonts();
       await tester.pumpWidget(
         RepaintBoundary(
           key: _previewKey,

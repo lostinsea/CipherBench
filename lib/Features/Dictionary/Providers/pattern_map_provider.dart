@@ -5,7 +5,11 @@ class PatternMapProvider extends FamilyNotifier<PatternMap, String> {
   @override
   PatternMap build(String arg) {
     if (arg == "english") {
-      return PatternMap.fromList(englishWordList);
+      return PatternMap.fromList([
+        ...englishWordList,
+        ...englishIrregularPlurals,
+        ...englishIndependentHeadwords,
+      ], regularPlurals: englishRegularPlurals);
     } else {
       return PatternMap.fromList(spanishWordList);
     }

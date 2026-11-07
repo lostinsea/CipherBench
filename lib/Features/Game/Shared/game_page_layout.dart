@@ -157,10 +157,10 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
                                 AppTheme.logoGreen,
                               ),
                               trackColor: WidgetStatePropertyAll(
-                                Color(0xFF152A35),
+                                Colors.transparent,
                               ),
                               trackBorderColor: WidgetStatePropertyAll(
-                                Colors.white38,
+                                Colors.transparent,
                               ),
                               thickness: WidgetStatePropertyAll(6),
                               radius: Radius.circular(3),
@@ -251,7 +251,7 @@ class _WindowsGameControls extends StatelessWidget {
         '${entry.value == 'Type Ñ' ? 'Ñ' : entry.value}: '
             '${switch (entry.key) {
               'Left / Right' => '←/→',
-              'Up / Down' => '↑/↓',
+              'Left / Up / Right / Down' => '← ↑ → ↓',
               _ => entry.key.replaceAll(' + ', '+'),
             }}',
     ].join(' | ');

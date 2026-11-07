@@ -27,27 +27,12 @@ class _DictionaryPopoverWidgetState
     extends ConsumerState<DictionaryPopoverWidget> {
   final ScrollController _wordsController = ScrollController();
   int? _wordStart;
+  bool _showRegularPlurals = false;
 
   @override
   void dispose() {
     _wordsController.dispose();
     super.dispose();
-  }
-
-  void _scrollWords(int direction) {
-    if (!_wordsController.hasClients) return;
-    final position = _wordsController.position;
-    final target =
-        (_wordsController.offset +
-                direction * position.viewportDimension * 0.75)
-            .clamp(0.0, position.maxScrollExtent);
-    if (target != _wordsController.offset) {
-      _wordsController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    }
   }
 
   void _onPointerSignal(PointerSignalEvent event) {
@@ -71,15 +56,23 @@ class _DictionaryPopoverWidgetState
     final gameKey = "${widget.gameId} (${toTitleCase(widget.gameMode.name)})";
     final keyboard = ref.read(keyboardProvider(gameKey).notifier);
     final provider = ref.read(gameProvider(gameKey).notifier);
-    final patternMap = ref.watch(patternMapProvider(widget.dictionaryId)).map;
+    final patternMap = ref.watch(patternMapProvider(widget.dictionaryId));
     final selectedIdx = ref.watch(
       gameProvider(gameKey).select((s) => s.selectedIdx),
     );
     final cells = ref.watch(gameProvider(gameKey).select((s) => s.cells));
     final wordStart = getWordStart(selectedIdx, cells);
-    final words = getSuggestedWords(cells, wordStart, patternMap);
     final isWindows =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    final words = getSuggestedWords(
+      cells,
+      wordStart,
+      patternMap.map,
+      includeWord:
+          isWindows && widget.dictionaryId == 'english' && !_showRegularPlurals
+          ? (word) => !patternMap.isRegularPlural(word)
+          : null,
+    );
     const suggestionColor = Colors.lightBlueAccent;
 
     if (_wordStart != wordStart) {
@@ -101,12 +94,16 @@ class _DictionaryPopoverWidgetState
         : Listener(
             onPointerSignal: _onPointerSignal,
             child: ScrollbarTheme(
-              data: const ScrollbarThemeData(
-                thumbColor: WidgetStatePropertyAll(suggestionColor),
-                trackColor: WidgetStatePropertyAll(Color(0xFF152A35)),
-                trackBorderColor: WidgetStatePropertyAll(Colors.white38),
-                thickness: WidgetStatePropertyAll(6),
-                radius: Radius.circular(3),
+              data: ScrollbarThemeData(
+                thumbColor: const WidgetStatePropertyAll(suggestionColor),
+                trackColor: WidgetStatePropertyAll(
+                  isWindows ? Colors.transparent : const Color(0xFF152A35),
+                ),
+                trackBorderColor: WidgetStatePropertyAll(
+                  isWindows ? Colors.transparent : Colors.white38,
+                ),
+                thickness: const WidgetStatePropertyAll(6),
+                radius: const Radius.circular(3),
               ),
               child: Scrollbar(
                 controller: _wordsController,
@@ -115,7 +112,7 @@ class _DictionaryPopoverWidgetState
                 thumbVisibility: true,
                 scrollbarOrientation: ScrollbarOrientation.bottom,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: isWindows ? 16 : 8),
                   child: ListView.builder(
                     controller: _wordsController,
                     scrollDirection: Axis.horizontal,
@@ -173,7 +170,9 @@ class _DictionaryPopoverWidgetState
             height: isWindows ? desktopSuggestionsHeight : containerHeight * 2,
             decoration: BoxDecoration(
               color: Colors.black,
-              border: isWindows ? Border.all(color: suggestionColor) : null,
+              border: isWindows
+                  ? const Border(top: BorderSide(color: suggestionColor))
+                  : null,
             ),
             child: isWindows
                 ? Padding(
@@ -201,34 +200,38 @@ class _DictionaryPopoverWidgetState
                                 ),
                               ),
                               const Spacer(),
-                              IconButton(
-                                tooltip: 'Previous suggestions',
-                                color: suggestionColor,
-                                icon: const Icon(Icons.chevron_left),
-                                iconSize: 20,
-                                constraints: const BoxConstraints.tightFor(
-                                  width: 28,
-                                  height: 24,
+                              if (widget.dictionaryId == 'english')
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: _showRegularPlurals
+                                        ? suggestionColor
+                                        : Colors.white70,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    minimumSize: const Size(0, 24),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () {
+                                    if (_wordsController.hasClients) {
+                                      _wordsController.jumpTo(0);
+                                    }
+                                    setState(() {
+                                      _showRegularPlurals =
+                                          !_showRegularPlurals;
+                                    });
+                                  },
+                                  child: Text(
+                                    _showRegularPlurals
+                                        ? 'SHOW REGULAR PLURALS: ON'
+                                        : 'SHOW REGULAR PLURALS: OFF',
+                                    style: const TextStyle(
+                                      fontFamily: 'JetBrainsMonoBold',
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
-                                padding: EdgeInsets.zero,
-                                onPressed: words.isEmpty
-                                    ? null
-                                    : () => _scrollWords(-1),
-                              ),
-                              IconButton(
-                                tooltip: 'Next suggestions',
-                                color: suggestionColor,
-                                icon: const Icon(Icons.chevron_right),
-                                iconSize: 20,
-                                constraints: const BoxConstraints.tightFor(
-                                  width: 28,
-                                  height: 24,
-                                ),
-                                padding: EdgeInsets.zero,
-                                onPressed: words.isEmpty
-                                    ? null
-                                    : () => _scrollWords(1),
-                              ),
                             ],
                           ),
                         ),

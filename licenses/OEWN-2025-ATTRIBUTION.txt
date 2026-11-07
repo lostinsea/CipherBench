@@ -1,0 +1,14 @@
+Open English WordNet 2025
+https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition
+
+Open English WordNet is released under the Creative Commons Attribution 4.0
+International License: https://creativecommons.org/licenses/by/4.0/
+
+Citation: John P. McCrae, Alexandre Rademaker, Francis Bond, Ewa Rudnicka,
+and Christiane Fellbaum (2019), "English WordNet 2019 - An Open-Source WordNet
+for English", Proceedings of the 10th Global WordNet Conference.
+https://aclanthology.org/2019.gwc-1.31/
+
+CipherBench uses a modified, lowercase subset of the 2025 edition's
+lexical headwords and noun-lemma evidence to select and classify English
+word forms. It does not redistribute the complete WordNet dataset.

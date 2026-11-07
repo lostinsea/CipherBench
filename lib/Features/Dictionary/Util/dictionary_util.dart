@@ -24,8 +24,9 @@ String getPatternKey(String word) {
 List<String> getSuggestedWords(
   List<Cell> cells,
   int wordStart,
-  Map<String, List<String>> dictionary,
-) {
+  Map<String, List<String>> dictionary, {
+  bool Function(String)? includeWord,
+}) {
   if (cells.isEmpty) {
     return [];
   }
@@ -34,15 +35,13 @@ List<String> getSuggestedWords(
     typed += cells[j].text == "" ? "*" : cells[j].text;
   }
   final words = dictionary[getPatternKey(getWord(wordStart, cells))] ?? [];
-  final newWords = [...words];
-  for (String w in words) {
+  return words.where((word) {
+    if (includeWord != null && !includeWord(word)) return false;
     for (int j = 0; j < typed.length; j++) {
-      if (typed[j] != "*" && w[j].toUpperCase() != typed[j]) {
-        newWords.remove(w);
-      }
+      if (typed[j] != "*" && word[j].toUpperCase() != typed[j]) return false;
     }
-  }
-  return newWords;
+    return true;
+  }).toList();
 }
 
 int getWordStart(int i, List<Cell> cells) {

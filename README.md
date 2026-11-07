@@ -22,7 +22,7 @@ CipherBench is a Windows-focused fork of an earlier cryptogram project. See [cre
   - A second launch brings the running window back instead of opening another copy.
 
 - 🔍 **Word Pattern Dictionary**  
-  Search a word and see all words matching the same cryptogram pattern. Supports both English and Spanish.
+  Search a word and see all words matching the same cryptogram pattern. Supports both English and Spanish. In the English dictionary, **Show regular plurals** adds regular forms not already in the dictionary; Windows puzzle suggestions have a matching option. Both default to leaving those additions out. Existing words, irregular plurals, and independently attested headwords remain visible.
 
 - 📊 **Stats Tracker**  
   Compare your puzzle-solving performance across **this week**, **last week**, and **all time**.

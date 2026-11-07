@@ -77,6 +77,7 @@ export 'Shared/widgets/home_button_widget.dart';
 export 'Shared/widgets/heading_widget.dart';
 export 'Shared/widgets/styled_button_widget.dart';
 export 'Shared/words/english_word_list.dart';
+export 'Shared/words/english_plurals.dart';
 export 'Shared/words/spanish_word_list.dart';
 
 export 'dimensions.dart';

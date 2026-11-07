@@ -34,7 +34,7 @@ double get keyWidth =>
     (safeWidth - (maxKeysInRow - 1) * spacing) / maxKeysInRow;
 double get keyboardH => screenH * 0.25; // Height of the keyboard widget
 const double desktopCommandsHeight = 56;
-const double desktopSuggestionsHeight = 88;
+const double desktopSuggestionsHeight = 96;
 const double desktopSuggestionsGap = 12;
 // dictionary styling
 const borderWidth = 2.0;

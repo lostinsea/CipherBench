@@ -22,9 +22,10 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
     "Ctrl + Z": "Undo",
     "Ctrl + Backspace": "Reset",
     "Backspace": "Erase",
-    "Left / Right": "Move",
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
-      "Up / Down": "Change line",
+      "Left / Up / Right / Down": "Move"
+    else
+      "Left / Right": "Move",
     if (language == Language.spanish) "Shift + N": "Type Ñ",
   };
 

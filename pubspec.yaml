@@ -88,6 +88,9 @@ flutter:
     - assets/quotes/
     - assets/image/
     - assets/music/sound_effects/
+    - licenses/ESDB-Copyright.txt
+    - licenses/AGID-README.txt
+    - licenses/OEWN-2025-ATTRIBUTION.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:

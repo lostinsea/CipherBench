@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _scrollbarInset = 24.0;
 const _entrySpacing = 24.0;
+const _windowsSearchMaxWidth = 600.0;
 
 double getEntryHeight(int wordCount, int wordLen, double viewportWidth) {
   // Calculate how many words fit per row
@@ -87,6 +88,7 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
 
   bool _userInterrupted = false;
   bool _isJumping = false;
+  bool _showRegularPlurals = false;
 
   double _contentExtent(
     BuildContext context,
@@ -287,9 +289,7 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final entries = ref
         .watch(patternMapProvider(widget.dictionaryId))
-        .map
-        .entries
-        .toList();
+        .visibleEntries(showRegularPlurals: _showRegularPlurals);
 
     Widget buildEntry(BuildContext context, int index) {
       final entry = entries[index];
@@ -305,41 +305,92 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
       );
     }
 
+    final pluralToggle = widget.dictionaryId == 'english'
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Show regular plurals',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(width: 12),
+              Switch(
+                value: _showRegularPlurals,
+                activeThumbColor: AppTheme.logoGreen,
+                onChanged: (value) {
+                  _userInterrupted = true;
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(0);
+                  }
+                  setState(() {
+                    _showRegularPlurals = value;
+                    _isJumping = false;
+                    _highlightedEntryIndex = null;
+                    _searchTerm = null;
+                    _entryKeys.clear();
+                    _wordKeys.clear();
+                  });
+                },
+              ),
+            ],
+          )
+        : null;
+    final searchField = TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: 'Search word...',
+        hintStyle: TextStyle(color: AppTheme.logoGreen),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: AppTheme.logoGreen, width: 1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.black.withAlpha(200), width: 1),
+        ),
+        fillColor: Colors.black.withAlpha(150),
+        suffixIcon: Icon(Icons.search, color: Colors.white),
+      ),
+      cursorColor: AppTheme.logoGreen,
+      style: TextStyle(color: AppTheme.logoGreen),
+      onSubmitted: (_) => _onSearch(entries),
+    );
+
     return Stack(
       children: [
         Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(searchPadding),
+              padding: isWindows
+                  ? const EdgeInsets.fromLTRB(
+                      2 * insetPadding,
+                      searchPadding,
+                      _scrollbarInset,
+                      searchPadding,
+                    )
+                  : const EdgeInsets.all(searchPadding),
               child: Row(
                 children: [
+                  if (isWindows && pluralToggle != null) ...[
+                    pluralToggle,
+                    const SizedBox(width: 32),
+                  ],
                   Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search word...',
-                        hintStyle: TextStyle(color: AppTheme.logoGreen),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppTheme.logoGreen,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: Colors.black.withAlpha(200),
-                            width: 1,
-                          ),
-                        ),
-                        fillColor: Colors.black.withAlpha(150),
-                        suffixIcon: Icon(Icons.search, color: Colors.white),
-                      ),
-                      cursorColor: AppTheme.logoGreen,
-                      style: TextStyle(color: AppTheme.logoGreen),
-                      onSubmitted: (_) => _onSearch(entries),
-                    ),
+                    child: isWindows
+                        ? Align(
+                            alignment: Alignment.centerRight,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: _windowsSearchMaxWidth,
+                              ),
+                              child: searchField,
+                            ),
+                          )
+                        : searchField,
                   ),
+                  if (!isWindows && pluralToggle != null) ...[
+                    const SizedBox(width: 8),
+                    pluralToggle,
+                  ],
                 ],
               ),
             ),

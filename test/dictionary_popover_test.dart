@@ -1,11 +1,33 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
 const _gameKey = 'Aristocrat (Manual)';
 const _lastFrequency = '9999';
+const _previewKey = ValueKey('plural-suggestions-preview');
+
+Future<void> _savePluralPreview(WidgetTester tester) async {
+  final path = Platform.environment['CIPHERBENCH_PLURALS_PREVIEW'];
+  if (path == null || path.isEmpty) return;
+  final file = File(path).absolute;
+  if (file.path.toLowerCase().startsWith(
+    '${Directory.current.absolute.path.toLowerCase()}\\',
+  )) {
+    throw ArgumentError.value(path, 'CIPHERBENCH_PLURALS_PREVIEW');
+  }
+  final original = autoUpdateGoldenFiles;
+  autoUpdateGoldenFiles = true;
+  try {
+    await expectLater(find.byKey(_previewKey), matchesGoldenFile(file.uri));
+  } finally {
+    autoUpdateGoldenFiles = original;
+  }
+}
 
 Cell _cell(
   String plainText, {
@@ -103,6 +125,28 @@ class _ShortPatternMapProvider extends PatternMapProvider {
   }
 }
 
+class _PluralSuggestionsGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) => Game(
+    quote: Quote(),
+    gameMode: GameMode.manual,
+    showSuggestions: true,
+    cells: [
+      for (final (index, letter) in 'DREAMS'.split('').indexed)
+        _cell(letter, cipher: 'C$index'),
+      _cell(' ', cipher: ' ', isException: true),
+    ],
+  );
+}
+
+class _PluralSuggestionsPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String dictionaryId) => PatternMap.fromList(
+    ['FRIEND', 'APPLES'],
+    regularPlurals: ['DREAMS', 'APPLES'],
+  );
+}
+
 class _EmptyPatternMapProvider extends PatternMapProvider {
   @override
   PatternMap build(String dictionaryId) => PatternMap();
@@ -116,17 +160,20 @@ Future<void> _pumpGame(
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: AppTheme.theme,
-        home: const GamePageLayout(
-          config: GamePageConfig(
-            gameId: 'Aristocrat',
-            gameMode: GameMode.manual,
-            language: Language.english,
+    RepaintBoundary(
+      key: _previewKey,
+      child: UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.theme,
+          home: const GamePageLayout(
+            config: GamePageConfig(
+              gameId: 'Aristocrat',
+              gameMode: GameMode.manual,
+              language: Language.english,
+            ),
+            addKeyboard: false,
           ),
-          addKeyboard: false,
         ),
       ),
     ),
@@ -196,6 +243,51 @@ Future<void> _withPlatform(
 
 void main() {
   group('dictionary suggestions', () {
+    testWidgets('Windows plural suggestions are hidden until enabled', (
+      tester,
+    ) async {
+      _ignoreHeaderListTileMaterialWarning();
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await _withPlatform(TargetPlatform.windows, () async {
+        if (Platform.environment.containsKey('CIPHERBENCH_PLURALS_PREVIEW')) {
+          for (final (name, path) in [
+            ('JetBrainsMono', 'assets/fonts/JetBrainsMono-Regular.ttf'),
+            ('JetBrainsMonoBold', 'assets/fonts/JetBrainsMono-SemiBold.ttf'),
+          ]) {
+            await (FontLoader(name)..addFont(rootBundle.load(path))).load();
+          }
+        }
+        final container = ProviderContainer(
+          overrides: [
+            gameProvider.overrideWith(_PluralSuggestionsGameProvider.new),
+            patternMapProvider.overrideWith(
+              _PluralSuggestionsPatternMapProvider.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await _pumpGame(tester, container, const Size(800, 600));
+
+        expect(find.text('SHOW REGULAR PLURALS: OFF'), findsOneWidget);
+        expect(find.text('FRIEND'), findsOneWidget);
+        expect(find.text('DREAMS'), findsNothing);
+        expect(find.byTooltip('Next suggestions'), findsNothing);
+        expect(find.byTooltip('Previous suggestions'), findsNothing);
+        await tester.tap(find.text('SHOW REGULAR PLURALS: OFF'));
+        await tester.pumpAndSettle();
+        expect(find.text('SHOW REGULAR PLURALS: ON'), findsOneWidget);
+        expect(find.text('DREAMS'), findsOneWidget);
+        await _savePluralPreview(tester);
+        await tester.tap(find.text('SHOW REGULAR PLURALS: ON'));
+        await tester.pumpAndSettle();
+        expect(find.text('DREAMS'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 1));
+      });
+    });
+
     testWidgets(
       'Windows puts a long suggestion list in its own scrollable panel and leaves the final frequency visible',
       (tester) async {
@@ -220,6 +312,11 @@ void main() {
 
             expect(panel, findsOneWidget);
             expect(list, findsOneWidget);
+            expect(
+              (tester.widget<Container>(panel).decoration! as BoxDecoration)
+                  .border,
+              const Border(top: BorderSide(color: Colors.lightBlueAccent)),
+            );
             expect(find.text('MATCHING WORDS'), findsOneWidget);
             expect(find.text('22'), findsOneWidget);
             expect(
@@ -227,6 +324,10 @@ void main() {
               Axis.horizontal,
             );
             expect(scrollbar, findsOneWidget);
+            expect(
+              tester.getRect(scrollbar).bottom - tester.getRect(list).bottom,
+              closeTo(16, 0.1),
+            );
 
             final suggestionsScroll = tester
                 .widget<Scrollbar>(scrollbar)
@@ -236,6 +337,11 @@ void main() {
             expect(suggestionsScrollbar.interactive, isTrue);
             expect(suggestionsScrollbar.trackVisibility, isTrue);
             expect(suggestionsScrollbar.thumbVisibility, isTrue);
+            for (final finder in [scrollbar, _puzzleScrollbar(puzzleScroll)]) {
+              final theme = ScrollbarTheme.of(tester.element(finder));
+              expect(theme.trackColor!.resolve({}), Colors.transparent);
+              expect(theme.trackBorderColor!.resolve({}), Colors.transparent);
+            }
             expect(
               suggestionsScroll.position.axisDirection,
               AxisDirection.right,
@@ -255,12 +361,13 @@ void main() {
 
             final beforeNextButton = suggestionsScroll.offset;
             final puzzleOffset = puzzleScroll.offset;
-            await tester.tap(find.byTooltip('Next suggestions'));
+            expect(find.text('SHOW REGULAR PLURALS: OFF'), findsOneWidget);
+            expect(find.byTooltip('Next suggestions'), findsNothing);
+            await tester.drag(list, const Offset(-300, 0));
             await tester.pump();
             await tester.pumpAndSettle();
             expect(suggestionsScroll.offset, greaterThan(beforeNextButton));
             expect(puzzleScroll.offset, puzzleOffset);
-            expect(find.byTooltip('Previous suggestions'), findsOneWidget);
 
             suggestionsScroll.jumpTo(0);
             expect(
@@ -408,7 +515,7 @@ void main() {
           );
 
           final puzzleOffset = puzzleScroll.offset;
-          await tester.tap(find.byTooltip('Next suggestions'));
+          await tester.drag(find.byType(ListView), const Offset(-300, 0));
           await tester.pumpAndSettle();
           expect(
             tester.widget<Scrollbar>(suggestionsScrollbar).controller!.offset,
@@ -530,6 +637,16 @@ void main() {
           expect(suggestion, findsOneWidget);
           expect(button, findsOneWidget);
           expect(wordList, findsOneWidget);
+          final theme = ScrollbarTheme.of(
+            tester.element(
+              find.descendant(
+                of: _suggestionsPanel(isWindows: false),
+                matching: find.byType(Scrollbar),
+              ),
+            ),
+          );
+          expect(theme.trackColor!.resolve({}), const Color(0xFF152A35));
+          expect(theme.trackBorderColor!.resolve({}), Colors.white38);
           expect(tester.getSize(button).height, containerHeight);
           expect(
             tester.getRect(button).bottom,

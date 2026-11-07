@@ -7,6 +7,13 @@ class DictionaryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const tabs = TabBar(
+      unselectedLabelColor: Colors.white,
+      tabs: [
+        Tab(text: 'English'),
+        Tab(text: 'Spanish'),
+      ],
+    );
     final colors = [
       AppTheme.logoGreen,
       Colors.yellowAccent,
@@ -21,15 +28,17 @@ class DictionaryPage extends ConsumerWidget {
         child: Scaffold(
           backgroundColor: AppTheme.appBarBackground,
           appBar: AppBar(
-            title: const Text('Pattern Dictionary'),
+            title: isWindowsDesktop
+                ? const Row(
+                    children: [
+                      Text('Pattern Dictionary'),
+                      SizedBox(width: 24),
+                      Expanded(child: tabs),
+                    ],
+                  )
+                : const Text('Pattern Dictionary'),
             backgroundColor: AppTheme.appBarBackground,
-            bottom: const TabBar(
-              unselectedLabelColor: Colors.white,
-              tabs: [
-                Tab(text: 'English'),
-                Tab(text: 'Spanish'),
-              ],
-            ),
+            bottom: isWindowsDesktop ? null : tabs,
           ),
           body: Padding(
             padding: EdgeInsets.symmetric(

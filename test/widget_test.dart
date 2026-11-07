@@ -20,9 +20,9 @@ const _scrollSelectedIndex = 160;
 const _responsiveGridGameKey = 'Aristocrat (Assisted)';
 const _windowsGameBodyInset = 38.0;
 const _englishWindowsHelp =
-    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Change line: ↑/↓';
+    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ← ↑ → ↓';
 const _spanishWindowsHelp =
-    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Change line: ↑/↓ | Ñ: Shift+N';
+    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ← ↑ → ↓ | Ñ: Shift+N';
 
 class _TestGameProvider extends GameProvider {
   @override
