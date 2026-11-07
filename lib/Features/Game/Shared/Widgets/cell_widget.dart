@@ -125,16 +125,25 @@ class CellWidget extends ConsumerWidget {
         ],
       );
     } else {
+      final isApostrophe = const {"'", "’", "‘"}.contains(cells[index].text);
+      final glyph = Text(
+        cells[index].text,
+        style: AppTheme.keyboardKeyTextStyle.copyWith(
+          fontSize: geometry.exceptionFontSize,
+        ),
+      );
       return SizedBox(
         width: geometry.cellWidth,
         height: geometry.cellHeight,
         child: Center(
-          child: Text(
-            cells[index].text,
-            style: AppTheme.keyboardKeyTextStyle.copyWith(
-              fontSize: geometry.exceptionFontSize,
-            ),
-          ),
+          child: isApostrophe
+              ? Transform.translate(
+                  offset: Offset(0, -geometry.cellHeight * 0.4),
+                  child: cells[index].text == "'"
+                      ? Transform.rotate(angle: 0.22, child: glyph)
+                      : glyph,
+                )
+              : glyph,
         ),
       );
     }

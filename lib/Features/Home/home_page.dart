@@ -77,7 +77,6 @@ class _HomePageState extends State<HomePage> {
                             HomeButtonWidget(
                               btnText: "Aristocrat",
                               neonColor: Colors.pinkAccent,
-                              num: "01",
                               onPressed: () async {
                                 await buttonClickSound();
                                 // Make sure context is still valid with mounted
@@ -97,7 +96,6 @@ class _HomePageState extends State<HomePage> {
                             HomeButtonWidget(
                               btnText: "Patristocrat",
                               neonColor: Colors.yellowAccent,
-                              num: "02",
                               onPressed: () async {
                                 await buttonClickSound();
                                 // Make sure context is still valid with mounted
@@ -117,7 +115,6 @@ class _HomePageState extends State<HomePage> {
                             HomeButtonWidget(
                               btnText: "Xenocrypt",
                               neonColor: Colors.lightBlueAccent,
-                              num: "03",
                               onPressed: () async {
                                 await buttonClickSound();
                                 // Make sure context is still valid with mounted
@@ -137,7 +134,6 @@ class _HomePageState extends State<HomePage> {
                             HomeButtonWidget(
                               btnText: "View Dictionary",
                               neonColor: AppTheme.logoGreen,
-                              num: "04",
                               onPressed: () async {
                                 await buttonClickSound();
                                 // Make sure context is still valid with mounted
@@ -154,7 +150,6 @@ class _HomePageState extends State<HomePage> {
                             HomeButtonWidget(
                               btnText: "View Solved Puzzles",
                               neonColor: Colors.pinkAccent,
-                              num: "05",
                               onPressed: () async {
                                 await buttonClickSound();
                                 // Make sure context is still valid with mounted

@@ -1,6 +1,9 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:scioly_codebusters/library.dart';
 
 class HomeButtonWidget extends ConsumerStatefulWidget {
@@ -94,7 +97,10 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final buttonWidth = size.width >= mobileMaxWidth
+    final buttonWidth =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+        ? min(size.height / 2, size.width * (5 / 6))
+        : size.width >= mobileMaxWidth
         ? size.height / 2
         : size.width * (5 / 6);
     return AnimatedBuilder(

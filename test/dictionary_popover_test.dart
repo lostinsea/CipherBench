@@ -1,0 +1,545 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:scioly_codebusters/library.dart';
+
+const _gameKey = 'Aristocrat (Manual)';
+const _lastFrequency = '9999';
+
+Cell _cell(
+  String plainText, {
+  required String cipher,
+  int count = 1,
+  bool isException = false,
+}) {
+  return Cell(
+    text: isException ? plainText : '',
+    cipher: cipher,
+    plainText: plainText,
+    count: count,
+    isException: isException,
+  );
+}
+
+List<Cell> _puzzleCells({required int wordCount}) {
+  final cells = <Cell>[];
+  for (var word = 0; word < wordCount; word++) {
+    for (final (index, letter) in 'ABCDE'.split('').indexed) {
+      cells.add(
+        _cell(
+          letter,
+          cipher: 'C$word$index',
+          count: word == wordCount - 1 && index == 4 ? 9999 : index + 1,
+        ),
+      );
+    }
+    cells.add(_cell(' ', cipher: ' ', isException: true));
+  }
+  return cells;
+}
+
+class _LongSuggestionsGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      gameMode: GameMode.manual,
+      showSuggestions: true,
+      cells: _puzzleCells(wordCount: 70),
+    );
+  }
+}
+
+class _ShortSuggestionsGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      gameMode: GameMode.manual,
+      showSuggestions: true,
+      cells: _puzzleCells(wordCount: 2),
+    );
+  }
+}
+
+class _SelectedCellGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    final cells = _puzzleCells(wordCount: 70);
+    final selectedIndex = 68 * 6 + 4;
+    cells[selectedIndex] = cells[selectedIndex].copyWith(
+      text: 'E',
+      isSelected: true,
+    );
+    return Game(
+      quote: Quote(),
+      selectedIdx: selectedIndex,
+      gameMode: GameMode.manual,
+      cells: cells,
+    );
+  }
+}
+
+class _LongPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String dictionaryId) {
+    final map = PatternMap();
+    for (var start = 0; start < 22; start++) {
+      map.addWord(
+        String.fromCharCodes(List.generate(5, (offset) => 65 + start + offset)),
+      );
+    }
+    return map;
+  }
+}
+
+class _ShortPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String dictionaryId) {
+    final map = PatternMap();
+    map.addWord('ABCDE');
+    return map;
+  }
+}
+
+class _EmptyPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String dictionaryId) => PatternMap();
+}
+
+Future<void> _pumpGame(
+  WidgetTester tester,
+  ProviderContainer container,
+  Size size,
+) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: AppTheme.theme,
+        home: const GamePageLayout(
+          config: GamePageConfig(
+            gameId: 'Aristocrat',
+            gameMode: GameMode.manual,
+            language: Language.english,
+          ),
+          addKeyboard: false,
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _suggestionsScrollbar(ScrollController puzzleScroll) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Scrollbar &&
+        widget.controller != null &&
+        !identical(widget.controller, puzzleScroll),
+  );
+}
+
+Finder _puzzleScrollbar(ScrollController puzzleScroll) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Scrollbar &&
+        identical(widget.controller, puzzleScroll) &&
+        widget.scrollbarOrientation == ScrollbarOrientation.right,
+  );
+}
+
+Finder _suggestionsPanel({required bool isWindows}) {
+  final height = isWindows ? desktopSuggestionsHeight : containerHeight * 2;
+  return find.byWidgetPredicate(
+    (widget) => widget is Container && widget.constraints?.maxHeight == height,
+  );
+}
+
+Finder _selectedPuzzleCell() {
+  return find.ancestor(
+    of: find.descendant(
+      of: find.byType(CryptogramGridWidget),
+      matching: find.text('E'),
+    ),
+    matching: find.byType(AnimatedContainer),
+  );
+}
+
+void _ignoreHeaderListTileMaterialWarning() {
+  final previousErrorHandler = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exceptionAsString().contains(
+      'ListTile background color or ink splashes may be invisible',
+    )) {
+      return;
+    }
+    previousErrorHandler?.call(details);
+  };
+  addTearDown(() => FlutterError.onError = previousErrorHandler);
+}
+
+Future<void> _withPlatform(
+  TargetPlatform platform,
+  Future<void> Function() body,
+) async {
+  debugDefaultTargetPlatformOverride = platform;
+  try {
+    await body();
+  } finally {
+    debugDefaultTargetPlatformOverride = null;
+  }
+}
+
+void main() {
+  group('dictionary suggestions', () {
+    testWidgets(
+      'Windows puts a long suggestion list in its own scrollable panel and leaves the final frequency visible',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await _withPlatform(TargetPlatform.windows, () async {
+          for (final size in const [Size(1100, 720), Size(800, 600)]) {
+            final container = ProviderContainer(
+              overrides: [
+                gameProvider.overrideWith(_LongSuggestionsGameProvider.new),
+                patternMapProvider.overrideWith(_LongPatternMapProvider.new),
+              ],
+            );
+            addTearDown(container.dispose);
+            await _pumpGame(tester, container, size);
+
+            final puzzleScroll = container.read(scrollProvider(_gameKey));
+            final panel = _suggestionsPanel(isWindows: true);
+            final list = find.byType(ListView);
+            final scrollbar = _suggestionsScrollbar(puzzleScroll);
+
+            expect(panel, findsOneWidget);
+            expect(list, findsOneWidget);
+            expect(find.text('MATCHING WORDS'), findsOneWidget);
+            expect(find.text('22'), findsOneWidget);
+            expect(
+              tester.widget<ListView>(list).scrollDirection,
+              Axis.horizontal,
+            );
+            expect(scrollbar, findsOneWidget);
+
+            final suggestionsScroll = tester
+                .widget<Scrollbar>(scrollbar)
+                .controller!;
+            final suggestionsScrollbar = tester.widget<Scrollbar>(scrollbar);
+            expect(suggestionsScroll, isNot(same(puzzleScroll)));
+            expect(suggestionsScrollbar.interactive, isTrue);
+            expect(suggestionsScrollbar.trackVisibility, isTrue);
+            expect(suggestionsScrollbar.thumbVisibility, isTrue);
+            expect(
+              suggestionsScroll.position.axisDirection,
+              AxisDirection.right,
+            );
+            expect(suggestionsScroll.position.maxScrollExtent, greaterThan(0));
+
+            puzzleScroll.jumpTo(puzzleScroll.position.maxScrollExtent);
+            await tester.pump();
+            final lastFrequencyBounds = tester.getRect(
+              find.text(_lastFrequency),
+            );
+            final panelBounds = tester.getRect(panel);
+            expect(
+              lastFrequencyBounds.bottom,
+              lessThanOrEqualTo(panelBounds.top),
+            );
+
+            final beforeNextButton = suggestionsScroll.offset;
+            final puzzleOffset = puzzleScroll.offset;
+            await tester.tap(find.byTooltip('Next suggestions'));
+            await tester.pump();
+            await tester.pumpAndSettle();
+            expect(suggestionsScroll.offset, greaterThan(beforeNextButton));
+            expect(puzzleScroll.offset, puzzleOffset);
+            expect(find.byTooltip('Previous suggestions'), findsOneWidget);
+
+            suggestionsScroll.jumpTo(0);
+            expect(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is Listener && widget.onPointerSignal != null,
+              ),
+              findsWidgets,
+            );
+            await tester.pump();
+            expect(suggestionsScroll.offset, 0);
+            expect(puzzleScroll.offset, puzzleOffset);
+            expect(tester.takeException(), isNull);
+          }
+          await tester.pump(const Duration(seconds: 1));
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
+    testWidgets(
+      'Windows keeps the selected cell visible when suggestions shrink the puzzle viewport',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await _withPlatform(TargetPlatform.windows, () async {
+          final container = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_SelectedCellGameProvider.new),
+              patternMapProvider.overrideWith(_LongPatternMapProvider.new),
+            ],
+          );
+          addTearDown(container.dispose);
+          await _pumpGame(tester, container, const Size(800, 600));
+
+          final viewport = find.byType(SingleChildScrollView);
+          expect(viewport, findsOneWidget);
+          expect(_selectedPuzzleCell(), findsOneWidget);
+          final beforeBounds = tester.getRect(_selectedPuzzleCell());
+          final beforeViewport = tester.getRect(viewport);
+          expect(beforeBounds.top, greaterThanOrEqualTo(beforeViewport.top));
+          expect(beforeBounds.bottom, lessThanOrEqualTo(beforeViewport.bottom));
+
+          container.read(gameProvider(_gameKey).notifier).setSuggestions(true);
+          await tester.pumpAndSettle();
+
+          final selectedBounds = tester.getRect(_selectedPuzzleCell());
+          final viewportBounds = tester.getRect(viewport);
+          expect(_suggestionsPanel(isWindows: true), findsOneWidget);
+          expect(selectedBounds.top, greaterThanOrEqualTo(viewportBounds.top));
+          expect(
+            selectedBounds.bottom,
+            lessThanOrEqualTo(viewportBounds.bottom),
+          );
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
+    testWidgets(
+      'Windows exposes long puzzle slots through its own vertical scrollbar',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await _withPlatform(TargetPlatform.windows, () async {
+          final container = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_LongSuggestionsGameProvider.new),
+              patternMapProvider.overrideWith(_LongPatternMapProvider.new),
+            ],
+          );
+          addTearDown(container.dispose);
+          await _pumpGame(tester, container, const Size(800, 600));
+
+          final puzzleScroll = container.read(scrollProvider(_gameKey));
+          final puzzleScrollbar = _puzzleScrollbar(puzzleScroll);
+          final suggestionsScrollbar = _suggestionsScrollbar(puzzleScroll);
+          final viewport = find.byType(SingleChildScrollView);
+          final puzzleScrollable = find.descendant(
+            of: viewport,
+            matching: find.byType(Scrollable),
+          );
+          final finalSlot = find.text(_lastFrequency);
+          final finalPuzzleCell = find
+              .descendant(
+                of: find.byType(CryptogramGridWidget),
+                matching: find.byType(AnimatedContainer),
+              )
+              .at(70 * 5 - 1);
+
+          expect(puzzleScrollbar, findsOneWidget);
+          expect(suggestionsScrollbar, findsOneWidget);
+          expect(viewport, findsOneWidget);
+          expect(puzzleScrollable, findsOneWidget);
+          final scrollbar = tester.widget<Scrollbar>(puzzleScrollbar);
+          expect(scrollbar.controller, same(puzzleScroll));
+          expect(scrollbar.interactive, isTrue);
+          expect(scrollbar.trackVisibility, isTrue);
+          expect(scrollbar.thumbVisibility, isTrue);
+          expect(scrollbar.scrollbarOrientation, ScrollbarOrientation.right);
+          expect(puzzleScroll.position.axisDirection, AxisDirection.down);
+          expect(puzzleScroll.position.maxScrollExtent, greaterThan(0));
+          expect(
+            tester.getRect(finalSlot).top,
+            greaterThan(tester.getRect(viewport).bottom),
+          );
+
+          final initialSuggestionOffset = tester
+              .widget<Scrollbar>(suggestionsScrollbar)
+              .controller!
+              .offset;
+          await tester.drag(viewport, const Offset(0, -2000));
+          await tester.pumpAndSettle();
+
+          expect(puzzleScroll.offset, greaterThan(0));
+          await tester.scrollUntilVisible(
+            finalSlot,
+            200,
+            scrollable: puzzleScrollable,
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.getRect(finalSlot).top,
+            greaterThanOrEqualTo(tester.getRect(viewport).top),
+          );
+          expect(
+            tester.getRect(finalSlot).bottom,
+            lessThanOrEqualTo(tester.getRect(viewport).bottom),
+          );
+          expect(
+            tester.widget<Scrollbar>(suggestionsScrollbar).controller!.offset,
+            initialSuggestionOffset,
+          );
+
+          await tester.tap(finalPuzzleCell);
+          await tester.pump();
+          expect(
+            container.read(gameProvider(_gameKey)).selectedIdx,
+            69 * 6 + 4,
+          );
+
+          final puzzleOffset = puzzleScroll.offset;
+          await tester.tap(find.byTooltip('Next suggestions'));
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<Scrollbar>(suggestionsScrollbar).controller!.offset,
+            greaterThan(initialSuggestionOffset),
+          );
+          expect(puzzleScroll.offset, puzzleOffset);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
+    testWidgets(
+      'short and empty suggestions retain their existing selection behavior',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await _withPlatform(TargetPlatform.windows, () async {
+          final shortContainer = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
+              patternMapProvider.overrideWith(_ShortPatternMapProvider.new),
+            ],
+          );
+          addTearDown(shortContainer.dispose);
+          await _pumpGame(tester, shortContainer, const Size(800, 600));
+
+          final shortPuzzleScroll = shortContainer.read(
+            scrollProvider(_gameKey),
+          );
+          expect(shortPuzzleScroll.position.maxScrollExtent, 0);
+          expect(shortPuzzleScroll.offset, 0);
+
+          await tester.tap(find.text('ABCDE'));
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(
+            shortContainer
+                .read(gameProvider(_gameKey))
+                .cells
+                .take(5)
+                .map((cell) => cell.text),
+            ['A', 'B', 'C', 'D', 'E'],
+          );
+
+          final emptyContainer = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
+              patternMapProvider.overrideWith(_EmptyPatternMapProvider.new),
+            ],
+          );
+          addTearDown(emptyContainer.dispose);
+          await _pumpGame(tester, emptyContainer, const Size(800, 600));
+          expect(_suggestionsPanel(isWindows: true), findsOneWidget);
+          expect(find.byType(ListView), findsNothing);
+          expect(find.text('ABCDE'), findsNothing);
+          expect(find.text('No matching words'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
+    testWidgets('non-Windows retains the compact suggestion panel height', (
+      tester,
+    ) async {
+      _ignoreHeaderListTileMaterialWarning();
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await _withPlatform(TargetPlatform.android, () async {
+        final container = ProviderContainer(
+          overrides: [
+            gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
+            patternMapProvider.overrideWith(_ShortPatternMapProvider.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        await _pumpGame(tester, container, const Size(800, 600));
+
+        expect(
+          tester.getSize(_suggestionsPanel(isWindows: false)).height,
+          containerHeight * 2,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 1));
+      });
+    });
+
+    testWidgets(
+      'non-Windows keeps suggestion buttons above the horizontal scrollbar gutter',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await _withPlatform(TargetPlatform.android, () async {
+          final container = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
+              patternMapProvider.overrideWith(_ShortPatternMapProvider.new),
+            ],
+          );
+          addTearDown(container.dispose);
+          await _pumpGame(tester, container, const Size(800, 600));
+
+          final suggestion = find.ancestor(
+            of: find.text('ABCDE'),
+            matching: find.byType(StyledButtonWidget),
+          );
+          final button = find.descendant(
+            of: suggestion,
+            matching: find.byType(InkWell),
+          );
+          final wordList = find.byType(ListView);
+
+          expect(suggestion, findsOneWidget);
+          expect(button, findsOneWidget);
+          expect(wordList, findsOneWidget);
+          expect(tester.getSize(button).height, containerHeight);
+          expect(
+            tester.getRect(button).bottom,
+            lessThanOrEqualTo(tester.getRect(wordList).bottom - 6),
+          );
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+  });
+}

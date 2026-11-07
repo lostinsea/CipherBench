@@ -1,7 +1,12 @@
+import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
@@ -98,8 +103,63 @@ class _TrailingWhitespaceGridGameProvider extends GameProvider {
   }
 }
 
+class _ApostropheGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      selectedIdx: 0,
+      cells: [
+        _cell('A', text: 'A', cipher: 'Q', count: 7).copyWith(
+          isSelected: true,
+        ),
+        _cell("'", text: "'", isException: true),
+        _cell('’', text: '’', isException: true),
+        _cell(',', text: ',', isException: true),
+      ],
+    );
+  }
+}
+
 const _firstCellKey = ValueKey('first-cell');
 const _secondCellKey = ValueKey('second-cell');
+const _apostrophePreviewKey = ValueKey('apostrophe-preview');
+const _apostrophePreviewEnvironment = 'CIPHERBENCH_APOSTROPHE_PREVIEW';
+
+Future<void> _loadAppFonts() async {
+  final regular = FontLoader('JetBrainsMono')
+    ..addFont(rootBundle.load('assets/fonts/JetBrainsMono-Regular.ttf'));
+  final semiBold = FontLoader('JetBrainsMonoBold')
+    ..addFont(rootBundle.load('assets/fonts/JetBrainsMono-SemiBold.ttf'));
+  await Future.wait([regular.load(), semiBold.load()]);
+}
+
+Future<void> _writeApostrophePreview(WidgetTester tester) async {
+  final outputPath = Platform.environment[_apostrophePreviewEnvironment];
+  if (outputPath == null || outputPath.isEmpty) {
+    return;
+  }
+
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_apostrophePreviewKey),
+  );
+  final image = await boundary.toImage(pixelRatio: 2);
+  try {
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (png == null) {
+      throw StateError('Unable to encode apostrophe preview as PNG.');
+    }
+
+    final output = File(outputPath);
+    await output.parent.create(recursive: true);
+    await output.writeAsBytes(
+      png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes),
+      flush: true,
+    );
+  } finally {
+    image.dispose();
+  }
+}
 
 Future<void> _pumpOutlineCells(
   WidgetTester tester, {
@@ -178,6 +238,8 @@ List<List<Rect>> _renderedCellBoundsByRow(WidgetTester tester) {
 }
 
 void main() {
+  setUpAll(_loadAppFonts);
+
   group('PuzzleGeometry', () {
     test('scales all puzzle dimensions from the zoom percent', () {
       final geometry = PuzzleGeometry(150);
@@ -459,6 +521,162 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'Windows apostrophes paint above punctuation without moving selected slots',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final geometry = PuzzleGeometry(140);
+      final container = ProviderContainer(
+        overrides: [gameProvider.overrideWith(_ApostropheGameProvider.new)],
+      );
+      addTearDown(container.dispose);
+
+      try {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.theme,
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: RepaintBoundary(
+                    key: _apostrophePreviewKey,
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: SizedBox(
+                        width: 160,
+                        height: geometry.rowHeight,
+                        child: CryptogramGridWidget(
+                          gameKey: 'apostrophes',
+                          gameId: 'Aristocrat',
+                          zoomPercent: 140,
+                          bottomInset: 0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final commaBounds = tester.getRect(find.text(','));
+        expect(tester.getRect(find.text("'")).top, lessThan(commaBounds.top));
+        expect(tester.getRect(find.text('’')).top, lessThan(commaBounds.top));
+
+        final straightApostropheTransforms = tester
+            .widgetList<Transform>(
+              find.ancestor(
+                of: find.text("'"),
+                matching: find.byType(Transform),
+              ),
+            )
+            .toList();
+        final straightApostropheRotation = straightApostropheTransforms
+            .singleWhere(
+              (transform) => transform.transform.storage[1].abs() > 0.001,
+            );
+        expect(straightApostropheTransforms, hasLength(2));
+        expect(
+          straightApostropheRotation.transform.storage[1],
+          closeTo(math.sin(0.22), 0.001),
+        );
+        expect(
+          straightApostropheRotation.transform.storage[4],
+          closeTo(-math.sin(0.22), 0.001),
+        );
+
+        final curlyApostropheTransforms = tester
+            .widgetList<Transform>(
+              find.ancestor(
+                of: find.text('’'),
+                matching: find.byType(Transform),
+              ),
+            )
+            .toList();
+        expect(curlyApostropheTransforms, hasLength(1));
+        final curlyApostropheTranslation = curlyApostropheTransforms.single;
+        expect(curlyApostropheTranslation.transform.storage[1], 0);
+        expect(curlyApostropheTranslation.transform.storage[4], 0);
+        expect(
+          curlyApostropheTranslation.transform.storage[13],
+          closeTo(-geometry.cellHeight * 0.4, 0.001),
+        );
+        expect(
+          find.ancestor(
+            of: find.text(','),
+            matching: find.byType(Transform),
+          ),
+          findsNothing,
+        );
+
+        final selectedCell = tester.getRect(find.byType(AnimatedContainer));
+        final apostropheSlot = tester.getRect(
+          find
+              .ancestor(
+                of: find.text("'"),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is SizedBox &&
+                      widget.width == geometry.cellWidth &&
+                      widget.height == geometry.cellHeight,
+                ),
+              )
+              .first,
+        );
+        final cipherSlot = tester.getRect(
+          find
+              .ancestor(
+                of: find.text('Q'),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is SizedBox &&
+                      widget.width == geometry.cellWidth &&
+                      widget.height == geometry.labelHeight,
+                ),
+              )
+              .first,
+        );
+        final frequencySlot = tester.getRect(
+          find
+              .ancestor(
+                of: find.text('7'),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is SizedBox &&
+                      widget.width == geometry.cellWidth &&
+                      widget.height == geometry.labelHeight,
+                ),
+              )
+              .first,
+        );
+
+        expect(selectedCell.size, Size(geometry.cellWidth, geometry.cellHeight));
+        expect(
+          apostropheSlot.top,
+          closeTo(
+            (geometry.rowHeight - geometry.cellHeight) / 2,
+            0.001,
+          ),
+        );
+        expect(selectedCell.top, closeTo(cipherSlot.bottom + geometry.gap, 0.001));
+        expect(
+          frequencySlot.top,
+          closeTo(selectedCell.bottom + geometry.gap, 0.001),
+        );
+        expect(cipherSlot.center.dx, closeTo(selectedCell.center.dx, 0.001));
+        expect(frequencySlot.center.dx, closeTo(selectedCell.center.dx, 0.001));
+        expect(tester.takeException(), isNull);
+        await tester.runAsync(() => _writeApostrophePreview(tester));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   group('layoutPuzzleRows', () {
     test(

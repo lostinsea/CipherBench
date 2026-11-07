@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
 
+const _windowsGameInset = 38.0;
+
 class GamePageLayout extends ConsumerStatefulWidget {
   final GamePageConfig config;
   final bool addKeyboard;
@@ -43,8 +45,51 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
       gameProvider(key).select((s) => s.showSuggestions),
     );
 
+    ref.listen<bool>(gameProvider(key).select((s) => s.showSuggestions), (
+      previous,
+      next,
+    ) {
+      if (!isWindows || !next) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref
+            .read(scrollProvider(key).notifier)
+            .scrollToSelected(ref.read(gameProvider(key)).selectedIdx);
+      });
+    });
+
     final bottomInset = widget.addKeyboard ? keyboardH : desktopCommandsHeight;
-    final suggestionInset = showSuggestions ? containerHeight * 2 : 0.0;
+    final suggestionInset = showSuggestions
+        ? isWindows
+              ? desktopSuggestionsHeight + desktopSuggestionsGap * 2
+              : containerHeight * 2
+        : 0.0;
+    final puzzleScrollView = SingleChildScrollView(
+      controller: scrollController,
+      padding: EdgeInsets.fromLTRB(
+        insetPadding,
+        insetPadding,
+        insetPadding,
+        insetPadding + (isWindows ? 0 : suggestionInset),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isWindows ? double.infinity : desktopContentWidth,
+          ),
+          child: CryptogramGridWidget(
+            gameKey: key,
+            gameId: gameId,
+            zoomPercent: isWindows ? _zoomPercent * 140 ~/ 100 : _zoomPercent,
+            extraRowGap: isWindows
+                ? const PuzzleGeometry(140).rowHeight * 0.25
+                : 0,
+            bottomInset: isWindows ? 0 : suggestionInset,
+            centerRows: isWindows,
+          ),
+        ),
+      ),
+    );
     final game = Container(
       decoration: AppTheme.backgroundGradient,
       child: Scaffold(
@@ -100,89 +145,83 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            Stack(
-              children: [
-                Positioned.fill(
-                  top: panelHeight + padding,
-                  bottom: bottomInset,
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: EdgeInsets.fromLTRB(
-                      insetPadding,
-                      insetPadding,
-                      insetPadding,
-                      insetPadding + suggestionInset,
+            Padding(
+              padding: EdgeInsets.all(isWindows ? _windowsGameInset : 0),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    top: panelHeight + padding,
+                    bottom: bottomInset + (isWindows ? suggestionInset : 0),
+                    child: isWindows
+                        ? ScrollbarTheme(
+                            data: const ScrollbarThemeData(
+                              thumbColor: WidgetStatePropertyAll(
+                                AppTheme.logoGreen,
+                              ),
+                              trackColor: WidgetStatePropertyAll(
+                                Color(0xFF152A35),
+                              ),
+                              trackBorderColor: WidgetStatePropertyAll(
+                                Colors.white38,
+                              ),
+                              thickness: WidgetStatePropertyAll(6),
+                              radius: Radius.circular(3),
+                            ),
+                            child: Scrollbar(
+                              controller: scrollController,
+                              thumbVisibility: true,
+                              trackVisibility: true,
+                              interactive: true,
+                              scrollbarOrientation: ScrollbarOrientation.right,
+                              child: puzzleScrollView,
+                            ),
+                          )
+                        : puzzleScrollView,
+                  ),
+                  if (showSuggestions)
+                    DictionaryPopoverWidget(
+                      gameId: gameId,
+                      gameMode: gameMode,
+                      dictionaryId: language.name,
+                      bottomInset:
+                          bottomInset + (isWindows ? desktopSuggestionsGap : 0),
                     ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: isWindows
-                              ? double.infinity
-                              : desktopContentWidth,
+                        constraints: const BoxConstraints(
+                          maxWidth: desktopContentWidth,
                         ),
-                        child: CryptogramGridWidget(
-                          gameKey: key,
-                          gameId: gameId,
-                          zoomPercent: isWindows
-                              ? _zoomPercent * 140 ~/ 100
-                              : _zoomPercent,
-                          extraRowGap: isWindows
-                              ? const PuzzleGeometry(140).rowHeight * 0.25
-                              : 0,
-                          bottomInset: suggestionInset,
-                          centerRows: isWindows,
-                        ),
+                        child: GamePageHeaderWidget(gameKey: key),
                       ),
                     ),
                   ),
-                ),
-                if (showSuggestions)
-                  AnimatedBuilder(
-                    animation: scrollController,
-                    builder: (context, child) {
-                      return DictionaryPopoverWidget(
-                        gameId: gameId,
-                        gameMode: gameMode,
-                        dictionaryId: language.name,
-                        bottomInset: bottomInset,
-                      );
-                    },
-                  ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: desktopContentWidth,
-                      ),
-                      child: GamePageHeaderWidget(gameKey: key),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: widget.addKeyboard
-                      ? KeyboardWidget(gameKey: key, language: language)
-                      : isWindows
-                      ? _WindowsGameControls(language: language)
-                      : Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              maxWidth: desktopContentWidth,
-                            ),
-                            child: AvailableCommandsWidget(
-                              commands: KeyboardShortcutsWidget.commands(
-                                language,
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: widget.addKeyboard
+                        ? KeyboardWidget(gameKey: key, language: language)
+                        : isWindows
+                        ? _WindowsGameControls(language: language)
+                        : Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: desktopContentWidth,
+                              ),
+                              child: AvailableCommandsWidget(
+                                commands: KeyboardShortcutsWidget.commands(
+                                  language,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
             if (showComplete)
               FinishedQuoteWidget(quote: quote, author: author, gameKey: key),

@@ -90,6 +90,13 @@ void main() {
           for (final label in _homeButtonLabels) {
             expect(_button(label), findsOneWidget);
           }
+          expect(
+            tester
+                .widgetList<HomeButtonWidget>(find.byType(HomeButtonWidget))
+                .every((button) => button.num.isEmpty),
+            isTrue,
+          );
+          expect(find.text('>'), findsNothing);
 
           await tester.tap(find.byIcon(Icons.settings));
           await tester.pumpAndSettle();
@@ -149,6 +156,66 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       }
     });
+
+    testWidgets(
+      'Windows home buttons stay compact and centered after narrowing',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          await _pumpHomePage(tester, const Size(1100, 720));
+          final wideButtonWidths = <String, double>{
+            for (final label in _homeButtonLabels)
+              label: tester.getRect(_button(label)).width,
+          };
+
+          tester.view.physicalSize = const Size(800, 600);
+          await tester.pump();
+
+          for (final label in _homeButtonLabels) {
+            final buttonRect = tester.getRect(_button(label));
+            expect(buttonRect.width, 300);
+            expect(
+              buttonRect.width,
+              lessThanOrEqualTo(wideButtonWidths[label]!),
+            );
+            expect(buttonRect.center.dx, 400);
+          }
+          expect(tester.takeException(), isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'Windows home buttons do not widen across the mobile width boundary',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          await _pumpHomePage(tester, const Size(1001, 600));
+          final wideButtonWidths = <String, double>{
+            for (final label in _homeButtonLabels)
+              label: tester.getRect(_button(label)).width,
+          };
+
+          tester.view.physicalSize = const Size(999, 600);
+          await tester.pump();
+
+          for (final label in _homeButtonLabels) {
+            final buttonRect = tester.getRect(_button(label));
+            expect(buttonRect.width, 300);
+            expect(
+              buttonRect.width,
+              lessThanOrEqualTo(wideButtonWidths[label]!),
+            );
+            expect(buttonRect.center.dx, 499.5);
+          }
+          expect(tester.takeException(), isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
 
     testWidgets(
       'mobile keeps the original centered logo in the scroll column',

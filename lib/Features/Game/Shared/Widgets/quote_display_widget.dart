@@ -21,19 +21,19 @@ class QuoteDisplayWidget extends StatelessWidget {
         color: color.withAlpha(20),
         border: Border.all(color: color.withAlpha(30), width: 1),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '"$quote"\n',
+            '"$quote"',
             style: TextStyle(
               color: color,
               fontFamily: "JetBrainsMonoBold",
               fontStyle: FontStyle.italic,
             ),
           ),
-          Positioned(
-            bottom: 0,
-            right: 0,
+          Align(
+            alignment: Alignment.centerRight,
             child: Text(
               "-$author",
               style: TextStyle(

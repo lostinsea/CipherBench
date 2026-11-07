@@ -17,19 +17,34 @@ class ResetCellAction extends Action<ResetCellIntent> {
   Future<void> invoke(covariant ResetCellIntent intent) async {
     final context = confirmationContext;
     if (context != null) {
+      final buttonStyle = OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: const BorderSide(color: AppTheme.logoGreen),
+      );
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Reset puzzle?'),
+          backgroundColor: Colors.black,
+          surfaceTintColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(
+            side: BorderSide(color: AppTheme.logoGreen),
+          ),
+          title: const Text(
+            'Reset puzzle?',
+            style: TextStyle(color: AppTheme.logoGreen),
+          ),
           content: const Text(
             'This clears your answers. You can undo the reset.',
+            style: TextStyle(color: Colors.white70),
           ),
           actions: [
-            TextButton(
+            OutlinedButton(
+              style: buttonStyle,
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            TextButton(
+            OutlinedButton(
+              style: buttonStyle,
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Reset'),
             ),

@@ -112,6 +112,7 @@ class _StyledButtonWidgetState extends ConsumerState<StyledButtonWidget>
                             ? [Shadow(color: widget.bgColor, blurRadius: 10)]
                             : [],
                       ),
+                      textAlign: TextAlign.center,
                     ),
               ),
             ),

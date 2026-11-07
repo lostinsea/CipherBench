@@ -18,6 +18,7 @@ const _rapidScrollGameKey = 'Rapid scroll test game';
 const _animatedScrollGameKey = 'Animated scroll test game';
 const _scrollSelectedIndex = 160;
 const _responsiveGridGameKey = 'Aristocrat (Assisted)';
+const _windowsGameBodyInset = 38.0;
 const _englishWindowsHelp =
     'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Change line: ↑/↓';
 const _spanishWindowsHelp =
@@ -255,6 +256,7 @@ Future<void> _pumpResponsiveGame(
             gameMode: GameMode.assisted,
             language: Language.english,
           ),
+          addKeyboard: false,
         ),
       ),
     ),
@@ -518,7 +520,7 @@ void main() {
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
 
-          for (final size in const [Size(800, 600), Size(2000, 600)]) {
+          for (final size in const [Size(800, 600), Size(1100, 720)]) {
             for (final language in const [Language.english, Language.spanish]) {
               tester.view.physicalSize = size;
               await _pumpDesktopGameControls(
@@ -541,6 +543,37 @@ void main() {
               final helpBounds = tester.getRect(find.text(help));
               final undoBounds = tester.getRect(undo);
               final resetBounds = tester.getRect(reset);
+              final headerBounds = tester.getRect(
+                find.byType(GamePageHeaderWidget),
+              );
+              final puzzleViewportBounds = tester.getRect(
+                find.byType(SingleChildScrollView),
+              );
+
+              expect(
+                headerBounds.left,
+                greaterThanOrEqualTo(_windowsGameBodyInset),
+              );
+              expect(
+                headerBounds.right,
+                lessThanOrEqualTo(size.width - _windowsGameBodyInset),
+              );
+              expect(
+                headerBounds.top,
+                greaterThanOrEqualTo(_windowsGameBodyInset),
+              );
+              expect(
+                puzzleViewportBounds.left,
+                greaterThanOrEqualTo(_windowsGameBodyInset),
+              );
+              expect(
+                puzzleViewportBounds.right,
+                lessThanOrEqualTo(size.width - _windowsGameBodyInset),
+              );
+              expect(
+                puzzleViewportBounds.bottom,
+                lessThanOrEqualTo(size.height - _windowsGameBodyInset),
+              );
               expect(
                 undoBounds.center.dy,
                 closeTo(resetBounds.center.dy, 0.001),
@@ -551,7 +584,15 @@ void main() {
               );
               expect(
                 resetBounds.right,
-                lessThanOrEqualTo(size.width - insetPadding),
+                lessThanOrEqualTo(size.width - _windowsGameBodyInset),
+              );
+              expect(
+                helpBounds.left,
+                greaterThanOrEqualTo(_windowsGameBodyInset),
+              );
+              expect(
+                resetBounds.bottom,
+                lessThanOrEqualTo(size.height - _windowsGameBodyInset),
               );
               if (size.width == 800) {
                 expect(helpBounds.right, lessThanOrEqualTo(undoBounds.left));
@@ -637,6 +678,37 @@ void main() {
         await _sendControlBackspace(tester);
         await tester.pump();
         expect(find.text('Reset puzzle?'), findsOneWidget);
+        final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+        final shape = dialog.shape! as RoundedRectangleBorder;
+        expect(dialog.backgroundColor, Colors.black);
+        expect(shape.side.color, AppTheme.logoGreen);
+        expect(shape.borderRadius, BorderRadius.zero);
+        expect(
+          tester.widget<Text>(find.text('Reset puzzle?')).style!.color,
+          AppTheme.logoGreen,
+        );
+        expect(
+          tester
+              .widget<Text>(
+                find.text('This clears your answers. You can undo the reset.'),
+              )
+              .style!
+              .color,
+          Colors.white70,
+        );
+        for (final label in ['Cancel', 'Reset']) {
+          final button = tester.widget<OutlinedButton>(
+            find.descendant(
+              of: find.byType(AlertDialog),
+              matching: find.widgetWithText(OutlinedButton, label),
+            ),
+          );
+          expect(button.style!.foregroundColor!.resolve({}), Colors.white);
+          expect(
+            button.style!.side!.resolve({})!.color,
+            AppTheme.logoGreen,
+          );
+        }
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
         _expectResizeGameAnswers(container, answers: ['N', 'X']);
@@ -734,11 +806,14 @@ void main() {
           expect(grid, findsOneWidget);
           expect(
             tester.getSize(grid).width,
-            closeTo(800 - 2 * insetPadding, 0.001),
+            closeTo(800 - 2 * _windowsGameBodyInset - 2 * insetPadding, 0.001),
           );
           _expectRenderedGridRowsCentered(tester, rowCount: 2);
           final narrowRows = _renderedGridCellBoundsByRow(tester);
-          expect(narrowRows.last.length, lessThan(narrowRows.first.length));
+          expect(
+            narrowRows.last.length,
+            lessThanOrEqualTo(narrowRows.first.length),
+          );
 
           final gameBeforeResize = container.read(
             gameProvider(_responsiveGridGameKey),
@@ -749,7 +824,7 @@ void main() {
 
           expect(
             tester.getSize(grid).width,
-            closeTo(2000 - 2 * insetPadding, 0.001),
+            closeTo(2000 - 2 * _windowsGameBodyInset - 2 * insetPadding, 0.001),
           );
           _expectRenderedGridRowsCentered(tester, rowCount: 1);
           expect(
