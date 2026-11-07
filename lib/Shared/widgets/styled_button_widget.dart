@@ -4,6 +4,7 @@ import 'package:scioly_codebusters/library.dart';
 
 class StyledButtonWidget extends ConsumerStatefulWidget {
   final String value;
+  final String? fittedLabel;
   final Icon? valueIcon;
   final Color txtColor;
   final Color bgColor;
@@ -21,6 +22,7 @@ class StyledButtonWidget extends ConsumerStatefulWidget {
     super.key,
 
     this.value = "",
+    this.fittedLabel,
     this.valueIcon,
     this.onPressed = _defaultOnPressed,
     this.endAlpha = 75,
@@ -78,6 +80,20 @@ class _StyledButtonWidgetState extends ConsumerState<StyledButtonWidget>
 
   @override
   Widget build(BuildContext context) {
+    final label = Text(
+      widget.fittedLabel ?? widget.value,
+      style: TextStyle(
+        color: widget.txtColor,
+        fontSize: 15,
+        shadows: widget.addTextShadow
+            ? [Shadow(color: widget.bgColor, blurRadius: 10)]
+            : [],
+      ),
+      textAlign: TextAlign.center,
+      maxLines: widget.fittedLabel == null ? null : 2,
+      softWrap: widget.fittedLabel == null,
+      semanticsLabel: widget.fittedLabel == null ? null : widget.value,
+    );
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -103,17 +119,9 @@ class _StyledButtonWidgetState extends ConsumerState<StyledButtonWidget>
               child: Center(
                 child:
                     widget.valueIcon ??
-                    Text(
-                      widget.value,
-                      style: TextStyle(
-                        color: widget.txtColor,
-                        fontSize: 15,
-                        shadows: widget.addTextShadow
-                            ? [Shadow(color: widget.bgColor, blurRadius: 10)]
-                            : [],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    (widget.fittedLabel == null
+                        ? label
+                        : FittedBox(fit: BoxFit.scaleDown, child: label)),
               ),
             ),
           ),

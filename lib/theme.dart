@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -8,6 +9,9 @@ import 'package:scioly_codebusters/library.dart';
 const buttonWidth = 200.0;
 // inset padding
 const insetPadding = 16.0;
+const windowsScreenInset = 38.0;
+bool get isWindowsDesktop =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 const desktopContentWidth = 1100.0;
 //styling for cells
 const containerWidth = 20.0;

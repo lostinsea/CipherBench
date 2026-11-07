@@ -99,7 +99,7 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
     final size = MediaQuery.sizeOf(context);
     final buttonWidth =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
-        ? min(size.height / 2, size.width * (5 / 6))
+        ? min(300.0, size.width * (5 / 6))
         : size.width >= mobileMaxWidth
         ? size.height / 2
         : size.width * (5 / 6);

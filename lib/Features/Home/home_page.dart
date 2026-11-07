@@ -27,7 +27,10 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       decoration: AppTheme.backgroundGradient,
-      padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      padding: EdgeInsets.symmetric(
+        vertical: 5,
+        horizontal: isWindows ? windowsScreenInset : 10,
+      ),
       child: Stack(
         children: [
           const ConditionalBg(),

@@ -175,6 +175,11 @@ void main() {
         final bounds = tester.getRect(content);
         expect(bounds.width, lessThanOrEqualTo(700));
         expect(bounds.center.dx, closeTo(size.width / 2, 1));
+        expect(bounds.left, greaterThanOrEqualTo(windowsScreenInset));
+        expect(
+          size.width - bounds.right,
+          greaterThanOrEqualTo(windowsScreenInset),
+        );
         expect(tester.takeException(), isNull);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -249,8 +254,8 @@ void main() {
       final text = find.text(label);
       final bounds = tester.getRect(text);
       expect(tester.widget<Text>(text).overflow, isNot(TextOverflow.ellipsis));
-      expect(bounds.left, greaterThanOrEqualTo(0));
-      expect(bounds.right, lessThanOrEqualTo(800));
+      expect(bounds.left, greaterThanOrEqualTo(windowsScreenInset));
+      expect(bounds.right, lessThanOrEqualTo(800 - windowsScreenInset));
     }
     expect(tester.takeException(), isNull);
   });

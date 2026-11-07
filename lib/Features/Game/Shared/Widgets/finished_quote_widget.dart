@@ -66,6 +66,7 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
     final actions = [
       StyledButtonWidget(
         value: "Play Again",
+        fittedLabel: isWindows ? "Play Again" : null,
         bgColor: Colors.redAccent,
         onPressed: () async {
           await buttonClickSound();
@@ -76,6 +77,7 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
       ),
       StyledButtonWidget(
         value: "View completed quote",
+        fittedLabel: isWindows ? "View completed\nquote" : null,
         bgColor: AppTheme.logoGreen,
         onPressed: () async {
           await buttonClickSound();
@@ -85,6 +87,9 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
       ),
       StyledButtonWidget(
         value: isFavorited ? "Unfavorite Quote" : "Add to favorites",
+        fittedLabel: isWindows
+            ? (isFavorited ? "Unfavorite\nQuote" : "Add to\nfavorites")
+            : null,
         bgColor: Colors.blueAccent,
         onPressed: () async {
           await buttonClickSound();
@@ -96,6 +101,7 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
       ),
       StyledButtonWidget(
         value: "Home",
+        fittedLabel: isWindows ? "Home" : null,
         bgColor: Colors.yellowAccent,
         onPressed: () async {
           await buttonClickSound();

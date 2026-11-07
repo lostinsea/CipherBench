@@ -27,11 +27,6 @@ class _StatRowWidgetState extends ConsumerState<StatRowWidget> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: widget.neonColor.withAlpha(100), width: 2),
-        ),
-      ),
       child: Row(
         children: [
           Transform.translate(

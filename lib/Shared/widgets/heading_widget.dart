@@ -47,12 +47,18 @@ class HeadingWidget extends ConsumerWidget {
                 ),
           ),
 
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: neonColor,
-              fontFamily: 'JetBrainsMonoBold',
-              fontSize: fontSize,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  color: neonColor,
+                  fontFamily: 'JetBrainsMonoBold',
+                  fontSize: fontSize,
+                ),
+              ),
             ),
           ),
         ],

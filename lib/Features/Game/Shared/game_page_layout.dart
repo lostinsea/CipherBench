@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
 
-const _windowsGameInset = 38.0;
-
 class GamePageLayout extends ConsumerStatefulWidget {
   final GamePageConfig config;
   final bool addKeyboard;
@@ -146,7 +144,7 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
           fit: StackFit.expand,
           children: [
             Padding(
-              padding: EdgeInsets.all(isWindows ? _windowsGameInset : 0),
+              padding: EdgeInsets.all(isWindows ? windowsScreenInset : 0),
               child: Stack(
                 children: [
                   Positioned.fill(

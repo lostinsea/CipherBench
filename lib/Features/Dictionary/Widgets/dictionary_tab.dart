@@ -1,9 +1,15 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:scioly_codebusters/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 //longest english: simultaneously
 //longest spanish: responsabilidades
+
+const _scrollbarInset = 24.0;
+const _entrySpacing = 24.0;
 
 double getEntryHeight(int wordCount, int wordLen, double viewportWidth) {
   // Calculate how many words fit per row
@@ -37,16 +43,33 @@ double getJump(
   return ans;
 }
 
+class _StableDictionaryDelegate extends SliverChildBuilderDelegate {
+  _StableDictionaryDelegate(
+    super.builder, {
+    required super.childCount,
+    super.semanticIndexCallback,
+    required this.contentExtent,
+  });
+
+  final double contentExtent;
+
+  @override
+  double? estimateMaxScrollOffset(
+    int firstIndex,
+    int lastIndex,
+    double leadingScrollOffset,
+    double trailingScrollOffset,
+  ) => contentExtent;
+}
+
 class DictionaryTab extends ConsumerStatefulWidget {
   final String dictionaryId;
   final List<Color> colors;
-  final ScrollController scrollController;
 
   const DictionaryTab({
     super.key,
     required this.dictionaryId,
     required this.colors,
-    required this.scrollController,
   });
 
   @override
@@ -55,6 +78,7 @@ class DictionaryTab extends ConsumerStatefulWidget {
 
 class _DictionaryTabState extends ConsumerState<DictionaryTab> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String? _searchTerm;
   int? _highlightedEntryIndex;
 
@@ -64,9 +88,81 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
   bool _userInterrupted = false;
   bool _isJumping = false;
 
+  double _contentExtent(
+    BuildContext context,
+    List<MapEntry<String, List<String>>> entries,
+    double viewportWidth,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    final defaultStyle = DefaultTextStyle.of(context).style;
+
+    double textHeight(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+      )..layout();
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    final wordStyle = defaultStyle.merge(const TextStyle(fontSize: 14));
+    final wordPainter = TextPainter(
+      textDirection: direction,
+      textScaler: scaler,
+    );
+    final wordHeight = textHeight('A', wordStyle) + 10 + 2 * borderWidth;
+    final headingHeight = math.max(
+      textHeight(
+        'A',
+        defaultStyle.merge(
+          const TextStyle(fontSize: 25, fontFamily: 'JetBrainsMonoBold'),
+        ),
+      ),
+      textHeight(
+            '1',
+            defaultStyle.merge(
+              const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+          ) +
+          6,
+    );
+    final wordWidths = <int, double>{};
+    final availableWidth = viewportWidth - 4 * insetPadding;
+    double extent = 2 * insetPadding;
+    for (final entry in entries) {
+      final wordLength = entry.key.length;
+      final width = wordWidths.putIfAbsent(wordLength, () {
+        wordPainter.text = TextSpan(text: 'M' * wordLength, style: wordStyle);
+        wordPainter.layout();
+        return wordPainter.width + 40 + 2 * borderWidth;
+      });
+      final wordsPerRow = math.max(
+        1,
+        ((availableWidth + wordWidgetSpacing) / (width + wordWidgetSpacing))
+            .floor(),
+      );
+      final rows = math.max(1, (entry.value.length / wordsPerRow).ceil());
+      extent +=
+          2 * insetPadding +
+          headingHeight +
+          2 + // Account for pixel rounding in rendered heading text.
+          padding +
+          10 +
+          rows * wordHeight +
+          (rows - 1) * 4 +
+          _entrySpacing;
+    }
+    wordPainter.dispose();
+    return entries.isEmpty ? extent : extent - _entrySpacing;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -137,23 +233,24 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
     }
 
     final scrollStep = MediaQuery.sizeOf(context).height;
-    if (attempt == 0 && widget.scrollController.hasClients) {
+    if (attempt == 0 && _scrollController.hasClients) {
       double jumpOffset = getJump(
         entries,
         targetEntryIndex,
-        MediaQuery.sizeOf(context).width.clamp(0, desktopContentWidth),
+        MediaQuery.sizeOf(context).width,
       );
       jumpOffset = jumpOffset.clamp(
         0.0,
-        widget.scrollController.position.maxScrollExtent,
+        _scrollController.position.maxScrollExtent,
       );
-      await widget.scrollController.animateTo(
+      await _scrollController.animateTo(
         jumpOffset,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_scrollController.hasClients) return;
       if (_userInterrupted) {
         if (_isJumping) setState(() => _isJumping = false);
         return;
@@ -168,14 +265,17 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
         );
         setState(() => _isJumping = false);
       } else {
-        final targetOffset = (widget.scrollController.offset + scrollStep)
-            .clamp(0.0, widget.scrollController.position.maxScrollExtent);
-        await widget.scrollController.animateTo(
+        final targetOffset = (_scrollController.offset + scrollStep).clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        );
+        await _scrollController.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
         await Future.delayed(const Duration(milliseconds: 120));
+        if (!mounted) return;
         _scrollToWord(wordKey, entries, targetEntryIndex, attempt + 1);
       }
     });
@@ -183,99 +283,144 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final entries = ref
         .watch(patternMapProvider(widget.dictionaryId))
         .map
         .entries
         .toList();
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: desktopContentWidth),
-        child: Stack(
+    Widget buildEntry(BuildContext context, int index) {
+      final entry = entries[index];
+      final curColor = widget.colors[index % widget.colors.length];
+      return DictionaryEntryWidget(
+        entry: entry,
+        index: index,
+        curColor: curColor,
+        isEntryHighlighted: index == _highlightedEntryIndex,
+        entryKey: _entryKeys.putIfAbsent(index, () => GlobalKey()),
+        wordKeys: _wordKeys,
+        searchTerm: _searchTerm,
+      );
+    }
+
+    return Stack(
+      children: [
+        Column(
           children: [
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(searchPadding),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search word...',
-                            hintStyle: TextStyle(color: AppTheme.logoGreen),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppTheme.logoGreen,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: Colors.black.withAlpha(200),
-                                width: 1,
-                              ),
-                            ),
-                            fillColor: Colors.black.withAlpha(150),
-                            suffixIcon: Icon(Icons.search, color: Colors.white),
+            Padding(
+              padding: const EdgeInsets.all(searchPadding),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search word...',
+                        hintStyle: TextStyle(color: AppTheme.logoGreen),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: AppTheme.logoGreen,
+                            width: 1,
                           ),
-                          cursorColor: AppTheme.logoGreen,
-                          style: TextStyle(color: AppTheme.logoGreen),
-                          onSubmitted: (_) => _onSearch(entries),
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.black.withAlpha(200),
+                            width: 1,
+                          ),
+                        ),
+                        fillColor: Colors.black.withAlpha(150),
+                        suffixIcon: Icon(Icons.search, color: Colors.white),
                       ),
-                    ],
+                      cursorColor: AppTheme.logoGreen,
+                      style: TextStyle(color: AppTheme.logoGreen),
+                      onSubmitted: (_) => _onSearch(entries),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (notification) {
-                      if (notification is UserScrollNotification) {
-                        _userInterrupted = true;
-                      }
-                      return false;
-                    },
-                    child: Scrollbar(
-                      controller: widget.scrollController,
-                      child: ListView.separated(
-                        controller: widget.scrollController,
-                        padding: const EdgeInsets.all(insetPadding),
-                        itemCount: entries.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 24),
-                        itemBuilder: (context, index) {
-                          final entry = entries[index];
-                          final curColor =
-                              widget.colors[index % widget.colors.length];
-                          return DictionaryEntryWidget(
-                            entry: entry,
-                            index: index,
-                            curColor: curColor,
-                            isEntryHighlighted: index == _highlightedEntryIndex,
-                            entryKey: _entryKeys.putIfAbsent(
-                              index,
-                              () => GlobalKey(),
+                ],
+              ),
+            ),
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is UserScrollNotification) {
+                    _userInterrupted = true;
+                  }
+                  return false;
+                },
+                child: ScrollbarTheme(
+                  data: isWindows
+                      ? const ScrollbarThemeData(
+                          thumbColor: WidgetStatePropertyAll(
+                            AppTheme.logoGreen,
+                          ),
+                          trackColor: WidgetStatePropertyAll(
+                            Colors.transparent,
+                          ),
+                          trackBorderColor: WidgetStatePropertyAll(
+                            Colors.transparent,
+                          ),
+                          thickness: WidgetStatePropertyAll(6),
+                          radius: Radius.circular(3),
+                          crossAxisMargin: _scrollbarInset,
+                        )
+                      : ScrollbarTheme.of(context),
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: isWindows,
+                    trackVisibility: isWindows,
+                    interactive: true,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => isWindows
+                          ? ListView.custom(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(insetPadding),
+                              semanticChildCount: entries.length,
+                              childrenDelegate: _StableDictionaryDelegate(
+                                (context, childIndex) {
+                                  if (childIndex.isOdd) {
+                                    return const SizedBox(
+                                      height: _entrySpacing,
+                                    );
+                                  }
+                                  return buildEntry(context, childIndex ~/ 2);
+                                },
+                                childCount: entries.isEmpty
+                                    ? 0
+                                    : entries.length * 2 - 1,
+                                semanticIndexCallback: (widget, index) =>
+                                    index.isEven ? index ~/ 2 : null,
+                                contentExtent: _contentExtent(
+                                  context,
+                                  entries,
+                                  constraints.maxWidth,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(insetPadding),
+                              itemCount: entries.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: _entrySpacing),
+                              itemBuilder: buildEntry,
                             ),
-                            wordKeys: _wordKeys,
-                            searchTerm: _searchTerm,
-                          );
-                        },
-                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-            if (_isJumping)
-              Container(
-                color: Colors.black.withAlpha((0.4 * 255).toInt()),
-                child: const Center(child: CircularProgressIndicator()),
               ),
+            ),
           ],
         ),
-      ),
+        if (_isJumping)
+          Container(
+            color: Colors.black.withAlpha((0.4 * 255).toInt()),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
     );
   }
 }

@@ -32,7 +32,9 @@ class GamePageSetup extends ConsumerWidget {
         appBar: AppBar(backgroundColor: AppTheme.appBarBackground),
         body: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(insetPadding),
+            padding: EdgeInsets.all(
+              isWindowsDesktop ? windowsScreenInset : insetPadding,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 700),
               child: Column(
@@ -223,7 +225,9 @@ class _SetupButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     final scaledWidth = 176 * textScale;
-    final availableWidth = MediaQuery.sizeOf(context).width - 2 * insetPadding;
+    final availableWidth =
+        MediaQuery.sizeOf(context).width -
+        2 * (isWindowsDesktop ? windowsScreenInset : insetPadding);
     return SizedBox(
       width: scaledWidth < availableWidth ? scaledWidth : availableWidth,
       height: 44 * textScale,

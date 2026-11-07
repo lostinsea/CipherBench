@@ -24,7 +24,9 @@ class XenocryptInstructionsPage extends StatelessWidget {
           ),
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(
+            isWindowsDesktop ? windowsScreenInset : insetPadding,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: desktopContentWidth),

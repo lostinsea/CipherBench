@@ -120,7 +120,7 @@ void main() {
         expect(_homeLogo(), findsOneWidget);
         final logoRect = tester.getRect(_homeLogo());
         expect(logoRect.size, const Size(96, 96));
-        expect(logoRect.left, 26);
+        expect(logoRect.left, windowsScreenInset + insetPadding);
         expect(logoRect.bottom, 699);
         _expectLogoAsset(tester, 'assets/image/cipherbench-mark.png');
 
@@ -144,7 +144,7 @@ void main() {
 
         final logoRect = tester.getRect(_homeLogo());
         expect(logoRect.size, const Size(80, 80));
-        expect(logoRect.left, 26);
+        expect(logoRect.left, windowsScreenInset + insetPadding);
         expect(logoRect.bottom, 579);
 
         for (final label in _homeButtonLabels) {
@@ -209,6 +209,30 @@ void main() {
               lessThanOrEqualTo(wideButtonWidths[label]!),
             );
             expect(buttonRect.center.dx, 499.5);
+          }
+          expect(tester.takeException(), isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'Windows home buttons do not widen when the window gets taller',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          await _pumpHomePage(tester, const Size(800, 600));
+
+          for (final height in [600.0, 720.0, 1000.0]) {
+            tester.view.physicalSize = Size(800, height);
+            await tester.pump();
+
+            for (final label in _homeButtonLabels) {
+              final buttonRect = tester.getRect(_button(label));
+              expect(buttonRect.width, 300);
+              expect(buttonRect.center.dx, 400);
+            }
           }
           expect(tester.takeException(), isNull);
         } finally {

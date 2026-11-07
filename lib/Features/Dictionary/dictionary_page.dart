@@ -3,8 +3,7 @@ import 'package:scioly_codebusters/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class DictionaryPage extends ConsumerWidget {
-  DictionaryPage({super.key});
-  final _scrollController = ScrollController();
+  const DictionaryPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,19 +31,16 @@ class DictionaryPage extends ConsumerWidget {
               ],
             ),
           ),
-          body: TabBarView(
-            children: [
-              DictionaryTab(
-                dictionaryId: "english",
-                colors: colors,
-                scrollController: _scrollController,
-              ),
-              DictionaryTab(
-                dictionaryId: "spanish",
-                colors: colors,
-                scrollController: _scrollController,
-              ),
-            ],
+          body: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isWindowsDesktop ? windowsScreenInset : 0,
+            ),
+            child: TabBarView(
+              children: [
+                DictionaryTab(dictionaryId: "english", colors: colors),
+                DictionaryTab(dictionaryId: "spanish", colors: colors),
+              ],
+            ),
           ),
         ),
       ),

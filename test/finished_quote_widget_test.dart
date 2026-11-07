@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,8 @@ import 'package:scioly_codebusters/library.dart';
 const _gameKey = 'finished quote test';
 const _edgeClearance = 38.0;
 const _previewOutputEnvironmentVariable = 'CIPHERBENCH_FINISHED_QUOTE_PREVIEW';
+const _scaledPreviewOutputEnvironmentVariable =
+    'CIPHERBENCH_FINISHED_QUOTE_SCALED_PREVIEW';
 const _previewBoundaryKey = ValueKey('finished-quote-preview');
 const _favoritedActionLabels = <String>[
   'Play Again',
@@ -45,7 +48,9 @@ class _BundledQuote {
 
 late Box<SolvedQuote> _quotesBox;
 
-Finder _action(String label) => find.widgetWithText(StyledButtonWidget, label);
+Finder _action(String label) => find.byWidgetPredicate(
+  (widget) => widget is StyledButtonWidget && widget.value == label,
+);
 
 List<String> _actionLabels(bool favorited) =>
     favorited ? _favoritedActionLabels : _unfavoritedActionLabels;
@@ -71,6 +76,7 @@ Future<void> _pumpFinishedQuote(
   required Size size,
   required _BundledQuote quote,
   bool favorited = true,
+  double textScale = 1,
 }) async {
   await _quotesBox.clear();
   await _quotesBox.add(
@@ -102,6 +108,12 @@ Future<void> _pumpFinishedQuote(
         container: container,
         child: MaterialApp(
           theme: AppTheme.theme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
           home: Scaffold(
             body: FinishedQuoteWidget(
               quote: quote.text,
@@ -116,8 +128,11 @@ Future<void> _pumpFinishedQuote(
   await tester.pump();
 }
 
-Future<void> _savePreviewIfRequested(WidgetTester tester) async {
-  final path = Platform.environment[_previewOutputEnvironmentVariable];
+Future<void> _savePreviewIfRequested(
+  WidgetTester tester, [
+  String environmentVariable = _previewOutputEnvironmentVariable,
+]) async {
+  final path = Platform.environment[environmentVariable];
   if (path == null || path.isEmpty) return;
 
   final output = File(path).absolute;
@@ -125,7 +140,7 @@ Future<void> _savePreviewIfRequested(WidgetTester tester) async {
   if (output.path.toLowerCase().startsWith('$repository\\')) {
     throw ArgumentError.value(
       path,
-      _previewOutputEnvironmentVariable,
+      environmentVariable,
       'must point outside the repository',
     );
   }
@@ -187,26 +202,57 @@ void _expectCompactActionRow(
       bounds.width,
       lessThanOrEqualTo((size.width - 2 * _edgeClearance) / 4),
     );
-    final labelFinder = find.text(actionLabels[index]);
+    final labelFinder = find.descendant(
+      of: _action(actionLabels[index]),
+      matching: find.byType(Text),
+    );
     final labelBounds = tester.getRect(labelFinder);
     expect(labelBounds.left, greaterThanOrEqualTo(bounds.left));
     expect(labelBounds.right, lessThanOrEqualTo(bounds.right));
     expect(labelBounds.top, greaterThanOrEqualTo(bounds.top));
     expect(labelBounds.bottom, lessThanOrEqualTo(bounds.bottom));
     final label = tester.widget<Text>(labelFinder);
-    final style = DefaultTextStyle.of(
-      tester.element(labelFinder),
-    ).style.merge(label.style);
-    final painter = TextPainter(
-      text: TextSpan(text: actionLabels[index], style: style),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: bounds.width - 10);
+    expect(label.semanticsLabel, actionLabels[index]);
+    expect(label.maxLines, 2);
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: labelFinder, matching: find.byType(RichText)),
+    );
+    expect(paragraph.didExceedMaxLines, isFalse);
+    final glyphBoxes = paragraph.getBoxesForSelection(
+      TextSelection(baseOffset: 0, extentOffset: label.data!.length),
+    );
+    expect(glyphBoxes, isNotEmpty);
+    for (final box in glyphBoxes) {
+      final paintedBounds = MatrixUtils.transformRect(
+        paragraph.getTransformTo(null),
+        box.toRect(),
+      );
+      expect(
+        paintedBounds.left,
+        greaterThanOrEqualTo(bounds.left + 1),
+        reason: '${actionLabels[index]} has glyphs clipped at the left',
+      );
+      expect(
+        paintedBounds.right,
+        lessThanOrEqualTo(bounds.right - 1),
+        reason: '${actionLabels[index]} has glyphs clipped at the right',
+      );
+      expect(
+        paintedBounds.top,
+        greaterThanOrEqualTo(bounds.top + 1),
+        reason: '${actionLabels[index]} has glyphs clipped at the top',
+      );
+      expect(
+        paintedBounds.bottom,
+        lessThanOrEqualTo(bounds.bottom - 1),
+        reason: '${actionLabels[index]} has glyphs clipped at the bottom',
+      );
+    }
     expect(
-      painter.computeLineMetrics().length,
+      label.data!.split('\n').length,
       lessThanOrEqualTo(2),
       reason: '${actionLabels[index]} must fit in at most two lines',
     );
-    painter.dispose();
   }
   expect(rowBounds.left, greaterThanOrEqualTo(_edgeClearance));
   expect(rowBounds.right, lessThanOrEqualTo(size.width - _edgeClearance));
@@ -303,7 +349,7 @@ void main() {
           final authorText = find.text('-${quote.author}');
           expect(quoteText, findsOneWidget);
           expect(authorText, findsOneWidget);
-          expect(find.text('Unfavorite Quote'), findsOneWidget);
+          expect(_action('Unfavorite Quote'), findsOneWidget);
 
           await tester.ensureVisible(quoteText);
           await tester.pump();
@@ -315,6 +361,36 @@ void main() {
 
           // Moving through the quote must not scroll the persistent action row away.
           _expectCompactActionRow(tester, size, _favoritedActionLabels);
+        }
+      });
+    },
+  );
+
+  testWidgets(
+    'Windows keeps both favorite states readable at larger text scales',
+    (tester) async {
+      await _runWindowsTest(tester, () async {
+        for (final scale in [1.5, 2.0]) {
+          for (final favorited in [false, true]) {
+            const size = Size(800, 600);
+            await _pumpFinishedQuote(
+              tester,
+              size: size,
+              quote: const _BundledQuote(
+                text: 'The interpretation of dreams is a great art.',
+                author: 'Paracelsus',
+              ),
+              favorited: favorited,
+              textScale: scale,
+            );
+            _expectCompactActionRow(tester, size, _actionLabels(favorited));
+            if (scale == 1.5 && !favorited) {
+              await _savePreviewIfRequested(
+                tester,
+                _scaledPreviewOutputEnvironmentVariable,
+              );
+            }
+          }
         }
       });
     },

@@ -29,11 +29,6 @@ class _StatBoxWidgetState extends ConsumerState<StatBoxWidget> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border.all(color: widget.neonColor, width: 2),
-        color: Colors.black,
-        boxShadow: [BoxShadow(color: widget.neonColor, blurRadius: 5.0)],
-      ),
       padding: EdgeInsets.all(insetPadding),
       child: Column(
         children: [

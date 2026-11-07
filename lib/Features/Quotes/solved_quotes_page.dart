@@ -22,7 +22,12 @@ class QuoteHomePage extends StatelessWidget {
               ],
             ),
           ),
-          body: const TabBarView(children: [AllQuotesTab(), FavoritesTab()]),
+          body: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isWindowsDesktop ? windowsScreenInset : 0,
+            ),
+            child: const TabBarView(children: [AllQuotesTab(), FavoritesTab()]),
+          ),
           //floatingActionButton: const AddQuoteButton(),
         ),
       ),
