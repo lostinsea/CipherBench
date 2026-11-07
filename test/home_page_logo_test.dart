@@ -75,6 +75,34 @@ void main() {
   });
 
   group('HomePage logo layout', () {
+    testWidgets(
+      'Windows removes the SYSTEM app bar chrome but keeps Settings available',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          await _pumpHomePage(tester, const Size(1100, 720));
+
+          final appBar = tester.widget<AppBar>(find.byType(AppBar));
+          expect(find.text('SYSTEM'), findsNothing);
+          expect(appBar.shape, isNull);
+          expect(find.byIcon(Icons.settings), findsOneWidget);
+          expect(_homeLogo(), findsOneWidget);
+          for (final label in _homeButtonLabels) {
+            expect(_button(label), findsOneWidget);
+          }
+
+          await tester.tap(find.byIcon(Icons.settings));
+          await tester.pumpAndSettle();
+
+          expect(find.byType(Settings), findsOneWidget);
+          expect(find.text('Settings'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
     testWidgets('Windows positions a 96px logo in the lower-left strip', (
       tester,
     ) async {

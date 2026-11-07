@@ -9,6 +9,7 @@ import 'package:scioly_codebusters/Features/Game Setup/Util/game_setup_library.d
 import 'package:scioly_codebusters/Features/Game/Shared/Models/game.dart';
 import 'package:scioly_codebusters/Features/Quotes/Models/solved_quote.dart';
 import 'package:scioly_codebusters/Features/Quotes/Util/quote_library.dart';
+import 'package:scioly_codebusters/Features/Settings/audio_controller.dart';
 import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/Features/Settings/settings.dart';
 import 'package:scioly_codebusters/Shared/widgets/heading_widget.dart';
@@ -31,6 +32,47 @@ class _ThreeFieldPrefsReader implements BinaryReader {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeAudioController extends AudioController {
+  _FakeAudioController({required bool isPlaying}) : _isPlaying = isPlaying;
+
+  bool _isPlaying;
+  int toggleCallCount = 0;
+  double? lastVolume;
+
+  @override
+  bool isBgPlaying() => _isPlaying;
+
+  @override
+  void toggleBgSound({bool updateState = true}) {
+    toggleCallCount++;
+    _isPlaying = !_isPlaying;
+    if (updateState) {
+      settingsBox!.put(
+        'prefs',
+        settingsBox!.get('prefs')!.copyWith(isBgMusicOn: _isPlaying),
+      );
+    }
+  }
+
+  @override
+  void setBgVolume(double volume) {
+    lastVolume = volume;
+  }
+}
+
+Finder _heading(String title) {
+  return find.byWidgetPredicate(
+    (widget) => widget is HeadingWidget && widget.title == title,
+  );
+}
+
+Finder _switchForHeading(String title) {
+  return find.ancestor(
+    of: _heading(title),
+    matching: find.byType(SwitchListTile),
+  );
 }
 
 void main() {
@@ -71,10 +113,7 @@ void main() {
     await tester.pump();
 
     final heading = tester.widget<HeadingWidget>(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is HeadingWidget && widget.title == 'Skip completed quotes',
-      ),
+      _heading('Skip completed quotes'),
     );
     expect(heading.neonColor, AppTheme.logoGreen);
     final headingTitle = tester.widget<Text>(
@@ -92,7 +131,9 @@ void main() {
       Colors.white70,
     );
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester
+          .widget<SwitchListTile>(_switchForHeading('Skip completed quotes'))
+          .value,
       isTrue,
     );
 
@@ -101,11 +142,174 @@ void main() {
 
     expect(settings.get('prefs')!.skipCompletedQuotes, isFalse);
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester
+          .widget<SwitchListTile>(_switchForHeading('Skip completed quotes'))
+          .value,
       isFalse,
     );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+  });
+
+  testWidgets('settings switches reflect and persist all preferences', (
+    tester,
+  ) async {
+    settingsBox = settings;
+    await settings.put('prefs', SettingPrefs());
+    final audio = _FakeAudioController(isPlaying: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: Settings(audioCont: audio),
+      ),
+    );
+    await tester.pump();
+
+    for (final title in const [
+      'Background Music',
+      'Matrix Effect',
+      'Skip completed quotes',
+    ]) {
+      expect(_switchForHeading(title), findsOneWidget);
+      expect(
+        tester.widget<SwitchListTile>(_switchForHeading(title)).value,
+        isTrue,
+      );
+    }
+
+    await tester.tap(_switchForHeading('Background Music'));
+    await tester.pump();
+    expect(audio.toggleCallCount, 1);
+    expect(settings.get('prefs')!.isBgMusicOn, isFalse);
+    expect(
+      tester
+          .widget<SwitchListTile>(_switchForHeading('Background Music'))
+          .value,
+      isFalse,
+    );
+
+    await tester.tap(_switchForHeading('Matrix Effect'));
+    await tester.pump();
+    expect(settings.get('prefs')!.bgMatrixOn, isFalse);
+    expect(
+      tester.widget<SwitchListTile>(_switchForHeading('Matrix Effect')).value,
+      isFalse,
+    );
+
+    await tester.tap(_switchForHeading('Skip completed quotes'));
+    await tester.pump();
+    expect(settings.get('prefs')!.skipCompletedQuotes, isFalse);
+    expect(
+      tester
+          .widget<SwitchListTile>(_switchForHeading('Skip completed quotes'))
+          .value,
+      isFalse,
+    );
+  });
+
+  testWidgets('music slider follows the music switch and does not update off', (
+    tester,
+  ) async {
+    settingsBox = settings;
+    await settings.put('prefs', SettingPrefs(bgVolume: 0.4));
+    final audio = _FakeAudioController(isPlaying: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: Settings(audioCont: audio),
+      ),
+    );
+    await tester.pump();
+
+    final slider = find.byType(Slider);
+    expect(slider, findsOneWidget);
+    expect(
+      tester.getTopLeft(slider).dy,
+      greaterThanOrEqualTo(
+        tester.getBottomLeft(_switchForHeading('Background Music')).dy,
+      ),
+    );
+
+    await tester.drag(slider, const Offset(80, 0));
+    await tester.pump();
+    expect(audio.lastVolume, isNotNull);
+    expect(settings.get('prefs')!.bgVolume, audio.lastVolume);
+
+    final volumeBeforeDisablingMusic = settings.get('prefs')!.bgVolume;
+    await tester.tap(_switchForHeading('Background Music'));
+    await tester.pump();
+
+    await tester.drag(slider, const Offset(-80, 0));
+    await tester.pump();
+    expect(settings.get('prefs')!.bgVolume, volumeBeforeDisablingMusic);
+    expect(audio.lastVolume, volumeBeforeDisablingMusic);
+  });
+
+  testWidgets('settings headings omit underlines without changing defaults', (
+    tester,
+  ) async {
+    settingsBox = settings;
+    await settings.put('prefs', SettingPrefs());
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.theme, home: Settings()),
+    );
+    await tester.pump();
+
+    for (final title in const [
+      'Background Music',
+      'Matrix Effect',
+      'Skip completed quotes',
+    ]) {
+      expect(
+        tester.widget<HeadingWidget>(_heading(title)).showUnderline,
+        isFalse,
+      );
+    }
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: HeadingWidget(neonColor: Colors.white, title: 'Elsewhere'),
+        ),
+      ),
+    );
+    expect(
+      tester.widget<HeadingWidget>(_heading('Elsewhere')).showUnderline,
+      isTrue,
+    );
+  });
+
+  testWidgets('settings content is centered and compact at Windows sizes', (
+    tester,
+  ) async {
+    settingsBox = settings;
+    await settings.put('prefs', SettingPrefs());
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final size in const [Size(1100, 720), Size(800, 600)]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.theme,
+          home: Settings(audioCont: _FakeAudioController(isPlaying: true)),
+        ),
+      );
+      await tester.pump();
+
+      final group = find.byType(ListView);
+      final groupBounds = tester.getRect(group);
+      final sliderBounds = tester.getRect(find.byType(Slider));
+      final musicSwitchBounds = tester.getRect(
+        _switchForHeading('Background Music'),
+      );
+      expect(groupBounds.width, lessThanOrEqualTo(700));
+      expect(groupBounds.center.dx, closeTo(size.width / 2, 1));
+      expect(sliderBounds.left, closeTo(musicSwitchBounds.left, 1));
+      expect(sliderBounds.right, closeTo(musicSwitchBounds.right, 1));
+    }
   });
 
   test(

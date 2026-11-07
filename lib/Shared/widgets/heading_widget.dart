@@ -7,6 +7,7 @@ class HeadingWidget extends ConsumerWidget {
   final String num;
   final Icon? numIcon;
   final double fontSize;
+  final bool showUnderline;
 
   const HeadingWidget({
     super.key,
@@ -15,15 +16,20 @@ class HeadingWidget extends ConsumerWidget {
     this.num = "",
     this.numIcon,
     this.fontSize = 18,
+    this.showUnderline = true,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: neonColor, width: 2)),
-      ),
-      padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
+      decoration: showUnderline
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: neonColor, width: 2)),
+            )
+          : null,
+      padding: showUnderline
+          ? const EdgeInsets.only(bottom: 10)
+          : EdgeInsets.zero,
       child: Row(
         children: [
           Container(

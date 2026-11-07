@@ -34,13 +34,6 @@ class _HomePageState extends State<HomePage> {
           Scaffold(
             backgroundColor: AppTheme.appBarBackground,
             appBar: AppBar(
-              title: const Text(
-                "SYSTEM",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              shape: Border(
-                bottom: BorderSide(color: AppTheme.logoGreen, width: 1),
-              ),
               actions: <Widget>[
                 Container(
                   decoration: BoxDecoration(
