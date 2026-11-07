@@ -212,7 +212,11 @@ class _WindowsGameControls extends StatelessWidget {
     final help = [
       for (final entry in commands.entries)
         '${entry.value == 'Type Ñ' ? 'Ñ' : entry.value}: '
-            '${entry.key == 'Left / Right' ? '←/→' : entry.key.replaceAll(' + ', '+')}',
+            '${switch (entry.key) {
+              'Left / Right' => '←/→',
+              'Up / Down' => '↑/↓',
+              _ => entry.key.replaceAll(' + ', '+'),
+            }}',
     ].join(' | ');
     final buttonStyle = OutlinedButton.styleFrom(
       foregroundColor: Colors.white,

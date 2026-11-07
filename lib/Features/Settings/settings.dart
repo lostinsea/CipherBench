@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class Settings extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _SettingsState extends ConsumerState<Settings> {
 
   @override
   Widget build(BuildContext context) {
+    final prefs = settingsBox?.get('prefs') as SettingPrefs?;
     return Container(
       decoration: AppTheme.backgroundGradient,
       child: Scaffold(
@@ -104,6 +106,35 @@ class _SettingsState extends ConsumerState<Settings> {
                       setState(() {
                         bgMatrixOn = !bgMatrixOn;
                       });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const HeadingWidget(
+                      neonColor: AppTheme.logoGreen,
+                      title: 'Skip completed quotes',
+                      numIcon: Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.black,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'New puzzles use quotes you have not solved yet.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    value: prefs?.skipCompletedQuotes ?? true,
+                    onChanged: (value) async {
+                      final current =
+                          settingsBox?.get('prefs') as SettingPrefs?;
+                      if (current == null) {
+                        throw StateError('Settings have not been initialized.');
+                      }
+                      await settingsBox!.put(
+                        'prefs',
+                        current.copyWith(skipCompletedQuotes: value),
+                      );
+                      if (mounted) setState(() {});
                     },
                   ),
                 ],

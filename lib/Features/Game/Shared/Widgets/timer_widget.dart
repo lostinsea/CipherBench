@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -44,16 +45,24 @@ class _TimerWidgetState extends ConsumerState<TimerWidget> {
         color: widget.color.withAlpha(50),
         border: Border.all(color: widget.color, width: 1),
       ),
-      width: 100,
+      width: !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+          ? 128
+          : 100,
       padding: EdgeInsets.all(padding),
       child: Center(
-        child: Text(
-          '${time}s',
-          style: TextStyle(
-            color: widget.color,
-            fontSize: 30,
-            fontFamily: 'JetBrainsMonoBold',
-            shadows: [Shadow(color: widget.color, blurRadius: 10)],
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '${time}s',
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: widget.color,
+              fontSize: 30,
+              fontFamily: 'JetBrainsMonoBold',
+              shadows: [Shadow(color: widget.color, blurRadius: 10)],
+            ),
           ),
         ),
       ),

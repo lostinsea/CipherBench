@@ -82,7 +82,9 @@ class CellWidget extends ConsumerWidget {
             onTap: () =>
                 ref.read(gameProvider(gameKey).notifier).selectCell(index),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: selectedOutline
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               width: geometry.cellWidth,
               height: geometry.cellHeight,
               decoration: BoxDecoration(

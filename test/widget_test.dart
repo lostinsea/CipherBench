@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,15 +10,18 @@ import 'package:scioly_codebusters/library.dart';
 const _gameKey = 'Keyboard test game';
 const _keyboardChildKey = ValueKey('keyboard-shortcuts-child');
 const _puzzleViewportKey = ValueKey('puzzle-viewport');
+const _rapidScrollViewportKey = ValueKey('rapid-scroll-viewport');
 const _puzzleHeaderKey = ValueKey('puzzle-header');
 const _puzzleCommandsKey = ValueKey('puzzle-commands');
 const _scrollGameKey = 'Scroll test game';
+const _rapidScrollGameKey = 'Rapid scroll test game';
+const _animatedScrollGameKey = 'Animated scroll test game';
 const _scrollSelectedIndex = 160;
 const _responsiveGridGameKey = 'Aristocrat (Assisted)';
 const _englishWindowsHelp =
-    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→';
+    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Change line: ↑/↓';
 const _spanishWindowsHelp =
-    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Ñ: Shift+N';
+    'Undo: Ctrl+Z | Reset: Ctrl+Backspace | Erase: Backspace | Move: ←/→ | Change line: ↑/↓ | Ñ: Shift+N';
 
 class _TestGameProvider extends GameProvider {
   @override
@@ -38,6 +43,27 @@ class _TestGameProvider extends GameProvider {
           isException: false,
           count: 1,
         ),
+      ],
+    );
+  }
+}
+
+class _VerticalShortcutGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      selectedIdx: 1,
+      cells: [
+        for (var index = 0; index < 4; index++)
+          Cell(
+            text: '',
+            cipher: '$index',
+            plainText: '$index',
+            isException: false,
+            isSelected: index == 1,
+            count: 1,
+          ),
       ],
     );
   }
@@ -109,6 +135,49 @@ class _ScrollGameProvider extends GameProvider {
             plainText: 'N',
             isException: false,
             isSelected: index == _scrollSelectedIndex,
+            count: 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _RapidScrollGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      gameMode: GameMode.manual,
+      cells: [
+        for (var index = 0; index < 24; index++)
+          Cell(
+            text: 'selected-$index',
+            cipher: 'C$index',
+            plainText: 'N',
+            isException: false,
+            isSelected: index == 0,
+            count: 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _AnimatedScrollGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    return Game(
+      quote: Quote(),
+      selectedIdx: 10,
+      gameMode: GameMode.manual,
+      cells: [
+        for (var index = 0; index < 80; index++)
+          Cell(
+            text: 'selected-$index',
+            cipher: 'C$index',
+            plainText: 'N',
+            isException: false,
+            isSelected: index == 10,
             count: 1,
           ),
       ],
@@ -450,10 +519,7 @@ void main() {
           addTearDown(tester.view.resetDevicePixelRatio);
 
           for (final size in const [Size(800, 600), Size(2000, 600)]) {
-            for (final language in const [
-              Language.english,
-              Language.spanish,
-            ]) {
+            for (final language in const [Language.english, Language.spanish]) {
               tester.view.physicalSize = size;
               await _pumpDesktopGameControls(
                 tester,
@@ -488,10 +554,7 @@ void main() {
                 lessThanOrEqualTo(size.width - insetPadding),
               );
               if (size.width == 800) {
-                expect(
-                  helpBounds.right,
-                  lessThanOrEqualTo(undoBounds.left),
-                );
+                expect(helpBounds.right, lessThanOrEqualTo(undoBounds.left));
               }
               expect(tester.takeException(), isNull);
             }
@@ -821,7 +884,12 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final notifier = container.read(scrollProvider('row-height').notifier);
-      const rows = [0, 1];
+      const rows = PuzzleRows(
+        [
+          [0, 1],
+        ],
+        [0, 0],
+      );
       const standard = PuzzleGeometry(140);
       const windows = PuzzleGeometry(140, extraRowGap: 22.75);
 
@@ -917,6 +985,257 @@ void main() {
       },
     );
 
+    testWidgets(
+      'rapid Windows ArrowDown repeats keep the current selected row in view',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        final container = ProviderContainer(
+          overrides: [gameProvider.overrideWith(_RapidScrollGameProvider.new)],
+        );
+        addTearDown(container.dispose);
+        try {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: 96,
+                      height: 200,
+                      child: KeyboardShortcutsWidget(
+                        gameKey: _rapidScrollGameKey,
+                        language: Language.english,
+                        child: Consumer(
+                          builder: (context, ref, child) {
+                            return SingleChildScrollView(
+                              key: _rapidScrollViewportKey,
+                              controller: ref.watch(
+                                scrollProvider(_rapidScrollGameKey),
+                              ),
+                              padding: const EdgeInsets.all(insetPadding),
+                              child: child,
+                            );
+                          },
+                          child: const CryptogramGridWidget(
+                            gameKey: _rapidScrollGameKey,
+                            gameId: 'Patristocrat',
+                            zoomPercent: 200,
+                            bottomInset: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          Focus.of(
+            tester.element(find.byKey(_rapidScrollViewportKey)),
+          ).requestFocus();
+          await tester.pump();
+
+          final viewport = find.byKey(_rapidScrollViewportKey);
+          for (var index = 1; index <= 12; index++) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+            await tester.pump();
+
+            expect(
+              container.read(gameProvider(_rapidScrollGameKey)).selectedIdx,
+              index,
+            );
+            final selectedBounds = tester.getRect(
+              find.ancestor(
+                of: find.text('selected-$index'),
+                matching: find.byType(AnimatedContainer),
+              ),
+            );
+            final viewportBounds = tester.getRect(viewport);
+            expect(
+              selectedBounds.top,
+              greaterThanOrEqualTo(viewportBounds.top),
+            );
+            expect(
+              selectedBounds.bottom,
+              lessThanOrEqualTo(viewportBounds.bottom),
+            );
+          }
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'Android ArrowRight keeps scrolling animated when it crosses the viewport',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final container = ProviderContainer(
+          overrides: [gameProvider.overrideWith(_RapidScrollGameProvider.new)],
+        );
+        addTearDown(container.dispose);
+        try {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: 96,
+                      height: 200,
+                      child: KeyboardShortcutsWidget(
+                        gameKey: _rapidScrollGameKey,
+                        language: Language.english,
+                        child: Consumer(
+                          builder: (context, ref, child) {
+                            return SingleChildScrollView(
+                              key: _rapidScrollViewportKey,
+                              controller: ref.watch(
+                                scrollProvider(_rapidScrollGameKey),
+                              ),
+                              padding: const EdgeInsets.all(insetPadding),
+                              child: child,
+                            );
+                          },
+                          child: const CryptogramGridWidget(
+                            gameKey: _rapidScrollGameKey,
+                            gameId: 'Patristocrat',
+                            zoomPercent: 200,
+                            bottomInset: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          Focus.of(
+            tester.element(find.byKey(_rapidScrollViewportKey)),
+          ).requestFocus();
+          await tester.pump();
+
+          final scroll = container.read(scrollProvider(_rapidScrollGameKey));
+          final initialOffset = scroll.offset;
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+          await tester.pump();
+
+          expect(
+            container.read(gameProvider(_rapidScrollGameKey)).selectedIdx,
+            1,
+          );
+          expect(scroll.offset, initialOffset);
+
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(scroll.offset, greaterThan(initialOffset));
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'Windows ArrowRight cancels an in-flight scroll for a visible cell',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        final container = ProviderContainer(
+          overrides: [
+            gameProvider.overrideWith(_AnimatedScrollGameProvider.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        try {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: 288,
+                      height: 200,
+                      child: KeyboardShortcutsWidget(
+                        gameKey: _animatedScrollGameKey,
+                        language: Language.english,
+                        child: Consumer(
+                          builder: (context, ref, child) {
+                            return SingleChildScrollView(
+                              key: _rapidScrollViewportKey,
+                              controller: ref.watch(
+                                scrollProvider(_animatedScrollGameKey),
+                              ),
+                              padding: const EdgeInsets.all(insetPadding),
+                              child: child,
+                            );
+                          },
+                          child: const CryptogramGridWidget(
+                            gameKey: _animatedScrollGameKey,
+                            gameId: 'Patristocrat',
+                            zoomPercent: 100,
+                            bottomInset: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          Focus.of(
+            tester.element(find.byKey(_rapidScrollViewportKey)),
+          ).requestFocus();
+          await tester.pumpAndSettle();
+
+          final scroll = container.read(scrollProvider(_animatedScrollGameKey));
+          unawaited(
+            scroll.animateTo(
+              scroll.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.linear,
+            ),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 25));
+          final inFlightOffset = scroll.offset;
+          expect(inFlightOffset, greaterThan(0));
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+          await tester.pump();
+          expect(
+            container.read(gameProvider(_animatedScrollGameKey)).selectedIdx,
+            11,
+          );
+
+          await tester.pump(const Duration(milliseconds: 350));
+          expect(scroll.offset, closeTo(inFlightOffset, 0.001));
+
+          final selectedBounds = tester.getRect(
+            find.ancestor(
+              of: find.text('selected-11'),
+              matching: find.byType(AnimatedContainer),
+            ),
+          );
+          final viewportBounds = tester.getRect(
+            find.byKey(_rapidScrollViewportKey),
+          );
+          expect(selectedBounds.top, greaterThanOrEqualTo(viewportBounds.top));
+          expect(
+            selectedBounds.bottom,
+            lessThanOrEqualTo(viewportBounds.bottom),
+          );
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
     testWidgets('English Shift+N types N', (tester) async {
       final container = ProviderContainer(
         overrides: [gameProvider.overrideWith(_TestGameProvider.new)],
@@ -957,6 +1276,101 @@ void main() {
         container.read(gameProvider(_gameKey)).cells.first.text,
         equals('Ñ'),
       );
+    });
+
+    testWidgets('Windows ArrowUp and ArrowDown change puzzle lines', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final container = ProviderContainer(
+        overrides: [
+          gameProvider.overrideWith(_VerticalShortcutGameProvider.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      try {
+        await _pumpKeyboardShortcuts(
+          tester,
+          container: container,
+          language: Language.english,
+        );
+        final scrollSubscription = container.listen(
+          scrollProvider(_gameKey),
+          (_, _) {},
+        );
+        addTearDown(scrollSubscription.close);
+        container
+            .read(scrollProvider(_gameKey).notifier)
+            .updateLayout(
+              const PuzzleRows(
+                [
+                  [0, 1],
+                  [2, 3],
+                ],
+                [0, 0, 1, 1],
+              ),
+              const PuzzleGeometry(100),
+              200,
+              600,
+              0,
+            );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pump();
+        expect(container.read(gameProvider(_gameKey)).selectedIdx, 3);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+        expect(container.read(gameProvider(_gameKey)).selectedIdx, 1);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('mobile ignores ArrowUp and ArrowDown shortcuts', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final container = ProviderContainer(
+        overrides: [
+          gameProvider.overrideWith(_VerticalShortcutGameProvider.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      try {
+        await _pumpKeyboardShortcuts(
+          tester,
+          container: container,
+          language: Language.english,
+        );
+        final scrollSubscription = container.listen(
+          scrollProvider(_gameKey),
+          (_, _) {},
+        );
+        addTearDown(scrollSubscription.close);
+        container
+            .read(scrollProvider(_gameKey).notifier)
+            .updateLayout(
+              const PuzzleRows(
+                [
+                  [0, 1],
+                  [2, 3],
+                ],
+                [0, 0, 1, 1],
+              ),
+              const PuzzleGeometry(100),
+              200,
+              600,
+              0,
+            );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pump();
+
+        expect(container.read(gameProvider(_gameKey)).selectedIdx, 1);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
 
     testWidgets('Control+Z undoes a physical keyboard letter', (tester) async {

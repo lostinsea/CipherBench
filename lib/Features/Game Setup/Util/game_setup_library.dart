@@ -1,6 +1,8 @@
 import 'package:scioly_codebusters/library.dart';
+import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 
 class GameSetup {
   static double width = 0;
@@ -18,7 +20,16 @@ class GameSetup {
     String gameId,
   ) async {
     List<Cell> newCells = [];
-    Quote quote = await getNewQuote(language);
+    final prefs = settingsBox?.get('prefs') as SettingPrefs?;
+    final completedQuoteTexts = prefs?.skipCompletedQuotes ?? true
+        ? Hive.box<SolvedQuote>(
+            'quotesBox',
+          ).values.map((quote) => quote.text).toSet()
+        : <String>{};
+    Quote quote = await getNewQuote(
+      language,
+      completedQuoteTexts: completedQuoteTexts,
+    );
     for (String i in quote.plainText.split('')) {
       if (isException(i, language) && gameId != "Patristocrat") {
         newCells.add(Cell(text: i, cipher: i, plainText: i, isException: true));

@@ -38,11 +38,12 @@ class CryptogramGridWidget extends ConsumerWidget {
         );
         final scroll = ref.read(scrollProvider(gameKey).notifier);
         if (scroll.updateLayout(
-          layout.rowByCell,
+          layout,
           geometry,
           constraints.maxWidth,
           MediaQuery.sizeOf(context).height,
           bottomInset,
+          centerRows: centerRows,
         )) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) scroll.scrollToSelected(selectedIdx);

@@ -149,11 +149,25 @@ class GamePageSetup extends ConsumerWidget {
                                   onPressed: () async {
                                     await buttonClickSound();
                                     // Make sure context is still valid with mounted
-                                    await gProvider.buildCryptogram(
-                                      gameMode,
-                                      language,
-                                      gameId,
-                                    );
+                                    try {
+                                      await gProvider.buildCryptogram(
+                                        gameMode,
+                                        language,
+                                        gameId,
+                                      );
+                                    } on NoUnseenQuotesException {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'No unseen quotes remain for this language. Turn off "Skip completed quotes" in Settings to replay them.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
                                     if (!context.mounted) return;
                                     Navigator.push(
                                       context,

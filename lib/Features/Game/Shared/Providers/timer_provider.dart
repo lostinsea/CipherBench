@@ -1,6 +1,15 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+const int maxDisplayedTimerSeconds = 9999;
+
+int cappedTimerSeconds(Duration elapsed) {
+  final seconds = elapsed.inSeconds;
+  return seconds > maxDisplayedTimerSeconds
+      ? maxDisplayedTimerSeconds
+      : seconds;
+}
+
 class TimerNotifier extends FamilyNotifier<int, String> {
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _tick;
@@ -43,10 +52,7 @@ class TimerNotifier extends FamilyNotifier<int, String> {
   void _startTicker() {
     _tick?.cancel();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      state = _stopwatch.elapsed.inSeconds;
-      if (state > 999) {
-        state = 999;
-      }
+      state = cappedTimerSeconds(_stopwatch.elapsed);
     });
   }
 

@@ -16,6 +16,9 @@ CipherBench is a Windows-focused fork of an earlier cryptogram project. See [cre
   - Resize or maximize the window; puzzle rows use the available width and stay centered.
   - Zoom puzzles from 75% to 200% in 5% steps. Row spacing is increased at the new 100% baseline without growing further as you zoom.
   - Use a physical keyboard (no on-screen game keyboard), shortcut help, and mouse-accessible Undo and Reset. Reset asks for confirmation.
+  - Navigate puzzle cells with Left/Right and jump to the nearest cell on another line with Up/Down; the selected outline stays visible while holding an arrow key.
+  - Follow the centered elapsed-time display through 9999s.
+  - New puzzles skip quotes in your completed history by default. Turn off **Skip completed quotes** in Settings to allow repeats; if you finish an entire language's pool, the app asks you to turn it off before replaying.
   - A second launch brings the running window back instead of opening another copy.
 
 - 🔍 **Word Pattern Dictionary**  

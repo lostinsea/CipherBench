@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -132,15 +133,17 @@ Future<void> _pumpOutlineCells(
 }
 
 BoxDecoration _cellDecoration(WidgetTester tester, Key key) {
-  return tester
-          .widget<AnimatedContainer>(
-            find.descendant(
+  final decoration = tester
+      .renderObject<RenderDecoratedBox>(
+        find
+            .descendant(
               of: find.byKey(key),
-              matching: find.byType(AnimatedContainer),
-            ),
-          )
-          .decoration!
-      as BoxDecoration;
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      )
+      .decoration;
+  return decoration as BoxDecoration;
 }
 
 Finder _renderedCell(String text) {
@@ -421,6 +424,40 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       }
     });
+
+    testWidgets(
+      'keeps the current Windows outline amber during rapid left and right moves',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        final container = ProviderContainer(
+          overrides: [gameProvider.overrideWith(_CellOutlineGameProvider.new)],
+        );
+        addTearDown(container.dispose);
+        try {
+          await _pumpOutlineCells(tester, container: container);
+          final game = container.read(gameProvider('outlines').notifier);
+
+          for (final direction in [1, -1, 1, -1]) {
+            game.incrementCell(direction);
+            await tester.pump();
+
+            final selectedIndex = container
+                .read(gameProvider('outlines'))
+                .selectedIdx;
+            final selectedKey = selectedIndex == 0
+                ? _firstCellKey
+                : _secondCellKey;
+            final decoration = _cellDecoration(tester, selectedKey);
+            expect(
+              decoration.border,
+              Border.all(color: const Color(0xFFFFD54F), width: 2),
+            );
+          }
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
   });
 
   group('layoutPuzzleRows', () {
@@ -528,6 +565,91 @@ void main() {
         ]),
       );
       expect(layout.rowByCell, equals([0, 0, 1, 1, 2]));
+    });
+  });
+
+  group('ScrollControllerNotifier vertical navigation', () {
+    test('uses the nearest visible x across uneven centered rows', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(scrollProvider('vertical').notifier);
+      final cells = List.generate(6, (index) => _cell('$index'));
+
+      notifier.updateLayout(
+        const PuzzleRows(
+          [
+            [0, 1, 2, 3],
+            [4, 5],
+          ],
+          [0, 0, 0, 0, 1, 1],
+        ),
+        const PuzzleGeometry(100),
+        200,
+        600,
+        0,
+        centerRows: true,
+      );
+
+      expect(notifier.verticalNeighbor(1, 1, cells), 4);
+      expect(notifier.verticalNeighbor(4, -1, cells), 1);
+    });
+
+    test(
+      'skips exceptions and whitespace when finding a vertical neighbor',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(scrollProvider('vertical').notifier);
+        final cells = [
+          _cell('A'),
+          _cell('B'),
+          _cell(' ', isException: true),
+          _cell(',', isException: true),
+          _cell('C'),
+        ];
+
+        notifier.updateLayout(
+          const PuzzleRows(
+            [
+              [0, 1],
+              [2, 3, 4],
+            ],
+            [0, 0, 1, 1, 1],
+          ),
+          const PuzzleGeometry(100),
+          200,
+          600,
+          0,
+          centerRows: true,
+        );
+
+        expect(notifier.verticalNeighbor(1, 1, cells), 4);
+        expect(notifier.verticalNeighbor(4, -1, cells), 1);
+      },
+    );
+
+    test('has no vertical neighbor beyond the first and last rows', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(scrollProvider('vertical').notifier);
+      final cells = List.generate(4, (index) => _cell('$index'));
+
+      notifier.updateLayout(
+        const PuzzleRows(
+          [
+            [0, 1],
+            [2, 3],
+          ],
+          [0, 0, 1, 1],
+        ),
+        const PuzzleGeometry(100),
+        200,
+        600,
+        0,
+      );
+
+      expect(notifier.verticalNeighbor(0, -1, cells), isNull);
+      expect(notifier.verticalNeighbor(3, 1, cells), isNull);
     });
   });
 

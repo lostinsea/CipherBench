@@ -61,7 +61,7 @@ class GameProvider extends FamilyNotifier<Game, String> {
     );
   }
 
-  void selectCell(int index) {
+  void selectCell(int index, {bool immediateScroll = false}) {
     state = state.copyWith(
       cells: [...state.cells].selectCell(index),
       selectedIdx: index,
@@ -71,7 +71,9 @@ class GameProvider extends FamilyNotifier<Game, String> {
     if (state.gameMode == GameMode.assisted) {
       state = state.copyWith(cells: [...state.cells].highlightCells(index));
     }
-    ref.read(scrollProvider(arg).notifier).scrollToSelected(index);
+    ref
+        .read(scrollProvider(arg).notifier)
+        .scrollToSelected(index, immediate: immediateScroll);
   }
 
   //nexCell(-1) goes to first valid cell
@@ -88,7 +90,7 @@ class GameProvider extends FamilyNotifier<Game, String> {
     }
   }
 
-  void incrementCell(int increment) {
+  void incrementCell(int increment, {bool immediateScroll = false}) {
     int idx = state.selectedIdx;
     idx += increment;
     while (idx < state.cells.length &&
@@ -96,7 +98,16 @@ class GameProvider extends FamilyNotifier<Game, String> {
         state.cells[idx].isException) {
       idx += increment;
     }
-    if (idx < state.cells.length && idx >= 0) selectCell(idx);
+    if (idx < state.cells.length && idx >= 0) {
+      selectCell(idx, immediateScroll: immediateScroll);
+    }
+  }
+
+  void moveVertical(int direction) {
+    final target = ref
+        .read(scrollProvider(arg).notifier)
+        .verticalNeighbor(state.selectedIdx, direction, state.cells);
+    if (target != null) selectCell(target, immediateScroll: true);
   }
 
   void undo() {
