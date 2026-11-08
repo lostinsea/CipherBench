@@ -101,6 +101,7 @@ void main() {
     expect(migrated.bgVolume, 0.4);
     expect(migrated.bgMatrixOn, isFalse);
     expect(migrated.skipCompletedQuotes, isTrue);
+    expect(migrated.frequencyWordOrder, isTrue);
   });
 
   testWidgets('persists the skip-completed-quotes switch', (tester) async {
@@ -170,6 +171,7 @@ void main() {
       'Background Music',
       'Matrix Effect',
       'Skip completed quotes',
+      'Frequency based word list order',
     ]) {
       expect(_switchForHeading(title), findsOneWidget);
       expect(
@@ -203,6 +205,36 @@ void main() {
     expect(
       tester
           .widget<SwitchListTile>(_switchForHeading('Skip completed quotes'))
+          .value,
+      isFalse,
+    );
+
+    await tester.ensureVisible(
+      _switchForHeading('Frequency based word list order'),
+    );
+    await tester.tap(_switchForHeading('Frequency based word list order'));
+    await tester.pump();
+    expect(settings.get('prefs')!.frequencyWordOrder, isFalse);
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            _switchForHeading('Frequency based word list order'),
+          )
+          .value,
+      isFalse,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: Settings(audioCont: audio),
+      ),
+    );
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            _switchForHeading('Frequency based word list order'),
+          )
           .value,
       isFalse,
     );

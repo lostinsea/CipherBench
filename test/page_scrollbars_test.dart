@@ -60,6 +60,16 @@ class _PluralPatternMapProvider extends PatternMapProvider {
       : PatternMap.fromList(['HOLA']);
 }
 
+class _FormPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String arg) => PatternMap.fromList(
+    ['CAT', 'COT', 'CUT', 'CART', 'APPLES'],
+    regularPlurals: ['CATS'],
+    verbForms: ['WALKING'],
+    descriptiveForms: ['BRIGHTER'],
+  );
+}
+
 Finder _dictionaryScrollbar(String dictionaryId) => find.descendant(
   of: find.byWidgetPredicate(
     (widget) => widget is DictionaryTab && widget.dictionaryId == dictionaryId,
@@ -118,15 +128,10 @@ Future<void> _checkStableDictionaryRange(
     controller.position.maxScrollExtent,
     closeTo(initialExtent, initialExtent * 0.02),
   );
-  final lastEntryIndex =
-      (language == 'english'
-          ? PatternMap.fromList([
-              ...englishWordList,
-              ...englishIrregularPlurals,
-              ...englishIndependentHeadwords,
-            ], regularPlurals: englishRegularPlurals).visibleEntries().length
-          : PatternMap.fromList(spanishWordList).map.length) -
-      1;
+  final dictionary = ProviderScope.containerOf(
+    tester.element(scrollbarFinder),
+  ).read(patternMapProvider(language));
+  final lastEntryIndex = dictionary.visibleEntries().length - 1;
   expect(
     tester
         .widgetList<DictionaryEntryWidget>(find.byType(DictionaryEntryWidget))
@@ -137,6 +142,56 @@ Future<void> _checkStableDictionaryRange(
 }
 
 void main() {
+  testWidgets('large English groups build only visible rows off Windows', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.theme,
+            home: const Scaffold(
+              body: DictionaryTab(
+                dictionaryId: 'english',
+                colors: [Colors.green],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final dictionary = ProviderScope.containerOf(
+        tester.element(find.byType(DictionaryTab)),
+      ).read(patternMapProvider('english'));
+      expect(
+        dictionary.visibleEntries().fold<int>(
+          0,
+          (total, entry) => total + entry.value.length,
+        ),
+        greaterThan(30000),
+      );
+      expect(
+        find.byType(DictionaryWordWidget).evaluate().length,
+        lessThan(200),
+      );
+      expect(
+        tester
+            .widget<ListView>(find.byType(ListView))
+            .controller!
+            .position
+            .maxScrollExtent,
+        greaterThan(0),
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  });
+
   testWidgets('Windows Dictionary tabs each have a draggable scrollbar', (
     tester,
   ) async {
@@ -200,17 +255,14 @@ void main() {
           closeTo(tester.getRect(find.text('English')).center.dy, 1),
         );
         expect(
-          tester.getRect(find.text('Show regular plurals')).left,
+          tester.getRect(find.text('Regular plurals')).left,
           closeTo(leftmostWord, 1),
         );
-        final labelBounds = tester.getRect(find.text('Show regular plurals'));
-        final switchBounds = tester.getRect(find.byType(Switch));
+        final labelBounds = tester.getRect(find.text('Regular plurals'));
+        final switchBounds = tester.getRect(find.byType(Switch).first);
         final searchBounds = tester.getRect(find.byType(TextField).first);
-        expect(switchBounds.left - labelBounds.right, greaterThanOrEqualTo(11));
-        expect(
-          searchBounds.left - switchBounds.right,
-          greaterThanOrEqualTo(31),
-        );
+        expect(switchBounds.left - labelBounds.right, greaterThanOrEqualTo(0));
+        expect(searchBounds.top, greaterThanOrEqualTo(switchBounds.bottom));
         expect(searchBounds.width, inInclusiveRange(270, 600));
         expect(searchBounds.right, closeTo(scrollbarRight - margin, 1));
         expect(size.width - (scrollbarRight - margin), windowsScreenInset + 24);
@@ -266,14 +318,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final toggle = find.byType(Switch);
+      final toggle = find.byType(Switch).first;
       final plural = find.byWidgetPredicate(
         (widget) => widget is DictionaryWordWidget && widget.word == 'DREAMS',
       );
       final existing = find.byWidgetPredicate(
         (widget) => widget is DictionaryWordWidget && widget.word == 'APPLES',
       );
-      expect(find.text('Show regular plurals'), findsOneWidget);
+      expect(find.text('Regular plurals'), findsOneWidget);
       expect(tester.widget<Switch>(toggle).value, isFalse);
       expect(plural, findsNothing);
       expect(existing, findsOneWidget);
@@ -292,6 +344,9 @@ void main() {
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       expect(plural, findsNothing);
+      expect(find.text('0 matching words'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
       expect(existing, findsOneWidget);
       await tester.tap(find.text('Spanish'));
       await tester.pumpAndSettle();
@@ -301,7 +356,7 @@ void main() {
             (widget) =>
                 widget is DictionaryTab && widget.dictionaryId == 'spanish',
           ),
-          matching: toggle,
+          matching: find.byType(Switch),
         ),
         findsNothing,
       );
@@ -403,14 +458,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final target = PatternMap.fromList(
-        [
-          ...englishWordList,
-          ...englishIrregularPlurals,
-          ...englishIndependentHeadwords,
-        ],
-        regularPlurals: englishRegularPlurals,
-      ).visibleEntries().last.value.last;
+      final target = ProviderScope.containerOf(
+        tester.element(_dictionaryScrollbar('english')),
+      ).read(patternMapProvider('english')).visibleEntries().last.value.last;
       await tester.enterText(find.byType(TextField).first, target);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       for (var attempt = 0; attempt < 15; attempt++) {
@@ -424,6 +474,175 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  });
+
+  testWidgets(
+    'Dictionary search help opens on click without changing results',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1;
+      try {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              patternMapProvider.overrideWith(_FormPatternMapProvider.new),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.theme,
+              home: const DictionaryPage(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final search = find.byType(TextField);
+        final help = find.byTooltip('Search help');
+        expect(help, findsOneWidget);
+        expect(
+          tester.getRect(help).right,
+          lessThanOrEqualTo(tester.getRect(search).right),
+        );
+        await tester.enterText(search, 'C?T');
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(find.text('3 matching words'), findsOneWidget);
+
+        await tester.tap(help);
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        final content = tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byType(AlertDialog),
+                matching: find.textContaining('? matches one letter'),
+              ),
+            )
+            .data!;
+        expect(content, contains('CAT finds CATS'));
+        expect(content, contains('C?T finds CAT, COT'));
+        expect(content, contains('C*T finds CAT, CART'));
+        expect(content, contains('Wildcards match the whole word'));
+        expect(
+          tester.getRect(find.byType(AlertDialog)).right,
+          lessThanOrEqualTo(800),
+        );
+
+        await tester.tap(find.text('Close'));
+        await tester.pumpAndSettle();
+        expect(tester.widget<TextField>(search).controller!.text, 'C?T');
+        expect(find.text('3 matching words'), findsOneWidget);
+        await tester.tap(find.text('Spanish'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Search help'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
+
+  testWidgets('English wildcard search lists only visible matching words', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    try {
+      if (Platform.environment.containsKey(
+        'CIPHERBENCH_DICTIONARY_SEARCH_PREVIEW',
+      )) {
+        await _loadPreviewFonts();
+      }
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: _previewKey,
+          child: ProviderScope(
+            overrides: [
+              patternMapProvider.overrideWith(_FormPatternMapProvider.new),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.theme,
+              home: const DictionaryPage(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final search = find.byType(TextField);
+      await tester.enterText(search, 'C?T');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('3 matching words'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<DictionaryEntryWidget>(
+              find.byType(DictionaryEntryWidget),
+            )
+            .where((entry) => entry.showHeading)
+            .map((entry) => entry.entry.key),
+        ['ABC'],
+      );
+      for (final word in ['CAT', 'COT', 'CUT']) {
+        expect(find.text(word), findsOneWidget);
+      }
+      expect(find.text('CART'), findsNothing);
+
+      await tester.enterText(search, 'C*T');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('4 matching words'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<DictionaryEntryWidget>(
+              find.byType(DictionaryEntryWidget),
+            )
+            .where((entry) => entry.showHeading)
+            .map((entry) => entry.entry.key),
+        ['ABC', 'ABCD'],
+      );
+      expect(find.text('CART'), findsOneWidget);
+      expect(find.text('APPLES'), findsNothing);
+      await _savePreview(tester, 'CIPHERBENCH_DICTIONARY_SEARCH_PREVIEW');
+
+      await tester.enterText(search, 'WALK*');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('No matching words'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('No matching words')).style!.color,
+        Colors.white70,
+      );
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pumpAndSettle();
+      expect(find.text('WALKING'), findsOneWidget);
+      expect(find.text('1 matching words'), findsOneWidget);
+
+      await tester.enterText(search, 'BRIGHT*');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('No matching words'), findsOneWidget);
+      await tester.tap(find.byType(Switch).at(2));
+      await tester.pumpAndSettle();
+      expect(find.text('BRIGHTER'), findsOneWidget);
+      await tester.enterText(search, 'CATS');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('No matching words'), findsOneWidget);
+      await tester.tap(find.byType(Switch).first);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(DictionaryWordWidget),
+          matching: find.text('CATS'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.enterText(search, '');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.byType(DictionaryEntryWidget), findsWidgets);
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;

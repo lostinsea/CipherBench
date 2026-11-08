@@ -91,6 +91,7 @@ flutter:
     - licenses/ESDB-Copyright.txt
     - licenses/AGID-README.txt
     - licenses/OEWN-2025-ATTRIBUTION.txt
+    - licenses/wordfreq-data-attribution.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:

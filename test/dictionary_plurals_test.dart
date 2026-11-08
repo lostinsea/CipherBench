@@ -3,6 +3,80 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
 void main() {
+  test(
+    'every English input pool excludes letters, numerals and codes from the index',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final dictionary = container.read(patternMapProvider('english'));
+      expect(dictionary.map['A'], ['A', 'I']);
+      expect(dictionary.map['AA'], isNull);
+      expect(dictionary.map['AB'], containsAll(['OF', 'TO', 'IN', 'IS', 'IT']));
+      expect(
+        dictionary.map['AB'],
+        isNot(contains(anyOf('IE', 'MR', 'MS', 'PC', 'PM', 'TV', 'VS'))),
+      );
+      final allWords = dictionary.map.values.expand((words) => words).toSet();
+      expect(allWords, containsAll(['A', 'I', 'MIX', 'PARAMETER']));
+      for (final code in [
+        'CEO',
+        'CORP',
+        'DNA',
+        'ETC',
+        'MRS',
+        'INST',
+        'SOS',
+        'ASAP',
+        'BPM',
+        'FTP',
+        'FTPING',
+        'FTPS',
+        'RPM',
+        'STD',
+        'VHF',
+        'III',
+        'XIV',
+        'XXX',
+      ]) {
+        expect(allWords, isNot(contains(code)), reason: '$code is not a word');
+      }
+      expect(allWords.every((word) => isIndexedEnglishWord(word)), isTrue);
+      expect(allWords, containsAll(['DOS', 'RES']));
+      expect(englishDisplayedBaseWords, isNot(contains(anyOf('TV', 'CEO'))));
+      expect(
+        dictionary.visibleEntries().expand((entry) => entry.value),
+        isNot(contains(anyOf('AIDS', 'DOS', 'RES'))),
+      );
+      expect(
+        dictionary
+            .visibleEntries(showRegularPlurals: true)
+            .expand((entry) => entry.value),
+        containsAll(['AIDS', 'DOS', 'RES']),
+      );
+      expect(
+        container
+            .read(patternMapProvider('spanish'))
+            .map
+            .values
+            .expand((words) => words),
+        contains('SOS'),
+      );
+      expect(englishSourceHeadwords.every((word) => word.length >= 3), isTrue);
+      expect(
+        englishSourceRegularPlurals.every((word) => word.length >= 3),
+        isTrue,
+      );
+      expect(
+        dictionary.map.values.expand((words) => words),
+        isNot(contains('BK')),
+      );
+      expect(
+        dictionary.map.values.expand((words) => words),
+        isNot(contains('XV')),
+      );
+    },
+  );
+
   test('English plurals are indexed with the correct visibility flag', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -12,14 +86,22 @@ void main() {
         .visibleEntries()
         .expand((entry) => entry.value)
         .toSet();
-    final original = englishWordList.map((word) => word.toUpperCase()).toSet();
+    final original = englishWordList
+        .where((word) => word != 'AIDS' && isIndexedEnglishWord(word))
+        .map((word) => word.toUpperCase())
+        .toSet();
     final regular = englishRegularPlurals
+        .where(isIndexedEnglishWord)
         .map((word) => word.toUpperCase())
         .toSet();
     final irregular = englishIrregularPlurals
+        .where(isIndexedEnglishWord)
         .map((word) => word.toUpperCase())
         .toSet();
     final independent = englishIndependentHeadwords
+        .where(
+          (word) => isIndexedEnglishWord(word) && word.toUpperCase() != 'DOS',
+        )
         .map((word) => word.toUpperCase())
         .toSet();
 
@@ -46,7 +128,7 @@ void main() {
       'DREAM',
       'LUNCH',
       'APPLES',
-      'SOS',
+      'AIRS',
       'WORKS',
       'HIS',
       'ITS',
@@ -66,29 +148,56 @@ void main() {
     }
     expect(regular.length, 2262);
     expect(irregular.length, 34);
-    expect(independent.length, 144);
+    expect(independent.length, 142);
     expect(regular, contains('INDEXES'));
     expect(defaultWords, isNot(contains('INDEXES')));
     expect(regular, isNot(contains('LEAFS')));
     expect(regular.length, englishRegularPlurals.length);
     expect(irregular.length, englishIrregularPlurals.length);
-    expect(independent.length, englishIndependentHeadwords.length);
+    expect(independent.length, englishIndependentHeadwords.length - 2);
     expect(regular.intersection(original), isEmpty);
     expect(regular.intersection(irregular), isEmpty);
     expect(regular.intersection(independent), isEmpty);
     expect(irregular.intersection(original), isEmpty);
     expect(independent.intersection(original), isEmpty);
-    expect(defaultWords, containsAll(original));
-    expect(defaultWords, containsAll(irregular));
-    expect(defaultWords, containsAll(independent));
+    final expectedDefault = {
+      ...original,
+      ...irregular,
+      ...independent,
+      ...englishSourceHeadwords
+          .where(
+            (word) => isIndexedEnglishWord(word) && word.toUpperCase() != 'RES',
+          )
+          .map((word) => word.toUpperCase()),
+      ...englishSourceIrregularPlurals
+          .where(isIndexedEnglishWord)
+          .map((word) => word.toUpperCase()),
+    };
+    final expectedAll = {
+      ...defaultWords,
+      ...regular,
+      ...englishSourceRegularPlurals
+          .where(isIndexedEnglishWord)
+          .map((word) => word.toUpperCase()),
+      ...englishSourceVerbForms
+          .where(isIndexedEnglishWord)
+          .map((word) => word.toUpperCase()),
+      ...englishSourceDescriptiveForms
+          .where(isIndexedEnglishWord)
+          .map((word) => word.toUpperCase()),
+    };
+    expect(defaultWords.length, expectedDefault.length);
+    expect(defaultWords.difference(expectedDefault), isEmpty);
+    expect(allWords.length, expectedAll.length);
+    expect(allWords.difference(expectedAll), isEmpty);
     expect(
-      defaultWords.length,
-      original.length + irregular.length + independent.length,
-    );
-    expect(allWords.length, defaultWords.length + regular.length);
-    expect(allWords, containsAll(defaultWords));
-    expect(
-      dictionary.visibleEntries(showRegularPlurals: true).length,
+      dictionary
+          .visibleEntries(
+            showRegularPlurals: true,
+            showVerbForms: true,
+            showDescriptiveForms: true,
+          )
+          .length,
       dictionary.map.length,
     );
     expect(
@@ -98,19 +207,19 @@ void main() {
       hasLength(1),
     );
     expect(dictionary.copy().isRegularPlural('DREAMS'), isTrue);
-    final sosCells = [
-      for (final letter in 'SOS'.split(''))
+    final airsCells = [
+      for (final letter in 'AIRS'.split(''))
         Cell(text: '', cipher: letter, plainText: letter, isException: false),
       Cell(text: ' ', cipher: ' ', plainText: ' ', isException: true),
     ];
     expect(
       getSuggestedWords(
-        sosCells,
+        airsCells,
         0,
         dictionary.map,
         includeWord: (word) => !dictionary.isRegularPlural(word),
       ),
-      contains('SOS'),
+      contains('AIRS'),
     );
     final indexCells = [
       for (final letter in 'INDICES'.split(''))

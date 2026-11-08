@@ -21,13 +21,14 @@ class SettingPrefsAdapter extends TypeAdapter<SettingPrefs> {
       bgVolume: fields[1] as double,
       bgMatrixOn: fields[2] as bool,
       skipCompletedQuotes: fields[3] == null ? true : fields[3] as bool,
+      frequencyWordOrder: fields[4] == null ? true : fields[4] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, SettingPrefs obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.isBgMusicOn)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class SettingPrefsAdapter extends TypeAdapter<SettingPrefs> {
       ..writeByte(2)
       ..write(obj.bgMatrixOn)
       ..writeByte(3)
-      ..write(obj.skipCompletedQuotes);
+      ..write(obj.skipCompletedQuotes)
+      ..writeByte(4)
+      ..write(obj.frequencyWordOrder);
   }
 
   @override

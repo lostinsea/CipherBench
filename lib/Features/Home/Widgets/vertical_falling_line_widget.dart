@@ -32,7 +32,10 @@ class _VerticalFallingLineState extends ConsumerState<VerticalFallingLine>
     );
 
     Random random = Random();
-    text = englishWordList[random.nextInt(englishWordList.length)];
+    text =
+        englishDisplayedBaseWords[random.nextInt(
+          englishDisplayedBaseWords.length,
+        )];
 
     y = (-(fontsize + 5) * text.length) - (random.nextDouble() * textBuffer);
     x = random.nextDouble() * GameSetup.width;

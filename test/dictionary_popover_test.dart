@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/library.dart';
 
 const _gameKey = 'Aristocrat (Manual)';
@@ -144,12 +146,34 @@ class _PluralSuggestionsPatternMapProvider extends PatternMapProvider {
   PatternMap build(String dictionaryId) => PatternMap.fromList(
     ['FRIEND', 'APPLES'],
     regularPlurals: ['DREAMS', 'APPLES'],
+    verbForms: ['WALKED'],
+    descriptiveForms: ['BOLDER'],
   );
 }
 
 class _EmptyPatternMapProvider extends PatternMapProvider {
   @override
   PatternMap build(String dictionaryId) => PatternMap();
+}
+
+class _FrequencySuggestionsGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) => Game(
+    quote: Quote(),
+    gameMode: GameMode.manual,
+    showSuggestions: true,
+    cells: [
+      for (final (index, letter) in 'LOVE'.split('').indexed)
+        _cell(letter, cipher: 'C$index'),
+      _cell(' ', cipher: ' ', isException: true),
+    ],
+  );
+}
+
+class _FrequencySuggestionsPatternMapProvider extends PatternMapProvider {
+  @override
+  PatternMap build(String dictionaryId) =>
+      PatternMap.fromList(['ZINC', 'LOVE']);
 }
 
 Future<void> _pumpGame(
@@ -243,6 +267,58 @@ Future<void> _withPlatform(
 
 void main() {
   group('dictionary suggestions', () {
+    testWidgets(
+      'Windows reorders English suggestions when preference changes',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        Hive.init(null);
+        Hive.registerAdapter(SettingPrefsAdapter());
+        final box = await Hive.openBox<SettingPrefs>(
+          'frequency-test-settings',
+          bytes: Uint8List(0),
+        );
+        final previousBox = settingsBox;
+        settingsBox = box;
+        addTearDown(() async {
+          settingsBox = previousBox;
+          await Hive.close();
+        });
+        await box.put('prefs', SettingPrefs(frequencyWordOrder: false));
+        await _withPlatform(TargetPlatform.windows, () async {
+          final container = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(_FrequencySuggestionsGameProvider.new),
+              patternMapProvider.overrideWith(
+                _FrequencySuggestionsPatternMapProvider.new,
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          await _pumpGame(tester, container, const Size(800, 600));
+
+          double x(String word) => tester.getTopLeft(find.text(word)).dx;
+          expect(x('ZINC'), lessThan(x('LOVE')));
+          await box.put(
+            'prefs',
+            box.get('prefs')!.copyWith(frequencyWordOrder: true),
+          );
+          await tester.pumpAndSettle();
+          expect(x('LOVE'), lessThan(x('ZINC')));
+          await box.put(
+            'prefs',
+            box.get('prefs')!.copyWith(frequencyWordOrder: false),
+          );
+          await tester.pumpAndSettle();
+          expect(x('ZINC'), lessThan(x('LOVE')));
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
     testWidgets('Windows plural suggestions are hidden until enabled', (
       tester,
     ) async {
@@ -269,22 +345,63 @@ void main() {
         addTearDown(container.dispose);
         await _pumpGame(tester, container, const Size(800, 600));
 
-        expect(find.text('SHOW REGULAR PLURALS: OFF'), findsOneWidget);
+        expect(find.text('PLURALS: OFF'), findsOneWidget);
+        expect(find.text('FRIEND'), findsNothing);
+        expect(find.text('Reveal word'), findsOneWidget);
+        await tester.tap(find.text('Reveal word'));
+        await tester.pumpAndSettle();
         expect(find.text('FRIEND'), findsOneWidget);
         expect(find.text('DREAMS'), findsNothing);
         expect(find.byTooltip('Next suggestions'), findsNothing);
         expect(find.byTooltip('Previous suggestions'), findsNothing);
-        await tester.tap(find.text('SHOW REGULAR PLURALS: OFF'));
+        await tester.tap(find.text('PLURALS: OFF'));
         await tester.pumpAndSettle();
-        expect(find.text('SHOW REGULAR PLURALS: ON'), findsOneWidget);
+        expect(find.text('PLURALS: ON'), findsOneWidget);
         expect(find.text('DREAMS'), findsOneWidget);
         await _savePluralPreview(tester);
-        await tester.tap(find.text('SHOW REGULAR PLURALS: ON'));
+        await tester.tap(find.text('PLURALS: ON'));
         await tester.pumpAndSettle();
         expect(find.text('DREAMS'), findsNothing);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 1));
+      });
+    });
+
+    testWidgets('Windows form controls reveal borderless suggestions', (
+      tester,
+    ) async {
+      _ignoreHeaderListTileMaterialWarning();
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await _withPlatform(TargetPlatform.windows, () async {
+        final container = ProviderContainer(
+          overrides: [
+            gameProvider.overrideWith(_PluralSuggestionsGameProvider.new),
+            patternMapProvider.overrideWith(
+              _PluralSuggestionsPatternMapProvider.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await _pumpGame(tester, container, const Size(800, 600));
+        expect(find.text('WALKED'), findsNothing);
+        expect(find.text('BOLDER'), findsNothing);
+        await tester.tap(find.text('VERBS: OFF'));
+        await tester.pumpAndSettle();
+        expect(find.text('WALKED'), findsOneWidget);
+        expect(find.text('BOLDER'), findsNothing);
+        await tester.tap(find.text('ADJ/ADV: OFF'));
+        await tester.pumpAndSettle();
+        expect(find.text('BOLDER'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: _suggestionsPanel(isWindows: true),
+            matching: find.byType(StyledButtonWidget),
+          ),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
       });
     });
 
@@ -309,6 +426,39 @@ void main() {
             final panel = _suggestionsPanel(isWindows: true);
             final list = find.byType(ListView);
             final scrollbar = _suggestionsScrollbar(puzzleScroll);
+            final labels = size.width < 1000
+                ? ['PLURALS: OFF', 'VERBS: OFF', 'ADJ/ADV: OFF']
+                : [
+                    'SHOW REGULAR PLURALS: OFF',
+                    'VERB FORMS: OFF',
+                    'ADJ / ADV FORMS: OFF',
+                  ];
+            final buttons = [
+              for (final label in labels)
+                find.ancestor(
+                  of: find.text(label),
+                  matching: find.byType(TextButton),
+                ),
+            ];
+            for (var index = 0; index < buttons.length - 1; index++) {
+              final current = tester.getRect(buttons[index]);
+              final next = tester.getRect(buttons[index + 1]);
+              expect(next.left - current.right, greaterThanOrEqualTo(6));
+              expect(next.center.dy, closeTo(current.center.dy, 1));
+            }
+            expect(
+              tester.getRect(buttons.last).right,
+              lessThanOrEqualTo(tester.getRect(panel).right),
+            );
+            expect(
+              tester
+                  .widget<TextButton>(buttons.first)
+                  .style
+                  ?.side
+                  ?.resolve({})
+                  ?.color,
+              Colors.white24,
+            );
 
             expect(panel, findsOneWidget);
             expect(list, findsOneWidget);
@@ -361,7 +511,14 @@ void main() {
 
             final beforeNextButton = suggestionsScroll.offset;
             final puzzleOffset = puzzleScroll.offset;
-            expect(find.text('SHOW REGULAR PLURALS: OFF'), findsOneWidget);
+            expect(
+              find.text(
+                size.width < 1000
+                    ? 'PLURALS: OFF'
+                    : 'SHOW REGULAR PLURALS: OFF',
+              ),
+              findsOneWidget,
+            );
             expect(find.byTooltip('Next suggestions'), findsNothing);
             await tester.drag(list, const Offset(-300, 0));
             await tester.pump();
@@ -551,6 +708,17 @@ void main() {
           expect(shortPuzzleScroll.position.maxScrollExtent, 0);
           expect(shortPuzzleScroll.offset, 0);
 
+          expect(find.text('ABCDE'), findsNothing);
+          expect(find.text('Reveal word'), findsOneWidget);
+          await tester.tap(find.text('Reveal word'));
+          await tester.pumpAndSettle();
+          expect(find.text('ABCDE'), findsOneWidget);
+          shortContainer.read(gameProvider(_gameKey).notifier).selectCell(6);
+          await tester.pumpAndSettle();
+          expect(find.text('ABCDE'), findsNothing);
+          expect(find.text('Reveal word'), findsOneWidget);
+          shortContainer.read(gameProvider(_gameKey).notifier).selectCell(0);
+          await tester.pumpAndSettle();
           await tester.tap(find.text('ABCDE'));
           await tester.pump();
           await tester.pump(const Duration(seconds: 1));

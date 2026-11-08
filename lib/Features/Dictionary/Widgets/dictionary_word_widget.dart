@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-int wordH = 32; // Borders (4) + padding (10) + font size (14) + runSpacing (4)
-
 class DictionaryWordWidget extends StatelessWidget {
   final String word;
   final int index;
   final Color curColor;
   final bool isEntryHighlighted;
-  final GlobalKey wordKey;
+  final Key wordKey;
   final String? searchTerm;
 
   const DictionaryWordWidget({
@@ -22,20 +20,13 @@ class DictionaryWordWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWordHighlighted =
-        isEntryHighlighted &&
-        searchTerm != null &&
-        word.toLowerCase() == searchTerm;
+    final isWordHighlighted = isEntryHighlighted && searchTerm != null;
     return Container(
       key: wordKey,
-      decoration: BoxDecoration(
-        color: isWordHighlighted ? Colors.orange.withAlpha(100) : Colors.black,
-        border: Border.all(
-          color: isWordHighlighted ? Colors.orange : curColor,
-          width: 2,
-        ),
-      ),
-      padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+      decoration: isWordHighlighted
+          ? BoxDecoration(color: Colors.orange.withAlpha(100))
+          : null,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Text(
         word,
         style: TextStyle(

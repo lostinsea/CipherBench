@@ -1,0 +1,14 @@
+English frequency estimates are derived from wordfreq's English large list
+at commit 912caf64b657478d1dff1138efdc078947d54bb1, by Robyn Speer:
+https://github.com/rspeer/wordfreq
+
+The generated English frequency score table is derived from wordfreq data,
+available under Creative Commons Attribution-ShareAlike 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/
+No text from CipherBench's bundled quotes was used to calculate the scores.
+
+wordfreq incorporates SUBTLEX subtitle frequency data, created by Marc
+Brysbaert et al. SUBTLEX is freely available at:
+https://crr.ugent.be/programs-data/subtitle-frequencies
+The full source attribution and licensing notes are at:
+https://github.com/rspeer/wordfreq/blob/master/NOTICE.md

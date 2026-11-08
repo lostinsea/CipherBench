@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
 void main() {
-  testWidgets('dictionary groups have no frame or underline but keep words', (
-    tester,
-  ) async {
+  testWidgets('dictionary groups and words are borderless', (tester) async {
     final entryKey = GlobalKey();
     await tester.pumpWidget(
       ProviderScope(
@@ -18,7 +16,6 @@ void main() {
               curColor: AppTheme.logoGreen,
               isEntryHighlighted: false,
               entryKey: entryKey,
-              wordKeys: {},
               searchTerm: null,
             ),
           ),
@@ -43,7 +40,7 @@ void main() {
       of: find.byType(DictionaryWordWidget).first,
       matching: find.byType(Container),
     );
-    expect(tester.widget<Container>(wordContainer.first).decoration, isNotNull);
+    expect(tester.widget<Container>(wordContainer.first).decoration, isNull);
     expect(tester.takeException(), isNull);
   });
 

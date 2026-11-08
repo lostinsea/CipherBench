@@ -1,54 +1,36 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:scioly_codebusters/Features/Dictionary/Util/dictionary_search.dart';
 import 'package:scioly_codebusters/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-//longest english: simultaneously
-//longest spanish: responsabilidades
 
 const _scrollbarInset = 24.0;
 const _entrySpacing = 24.0;
 const _windowsSearchMaxWidth = 600.0;
 
-double getEntryHeight(int wordCount, int wordLen, double viewportWidth) {
-  // Calculate how many words fit per row
-  int wordsPerRow =
-      ((viewportWidth - 4 * insetPadding) /
-              (getWordWidgetWidth(wordLen) + wordWidgetSpacing))
-          .floor();
-  if (wordsPerRow < 1) wordsPerRow = 1;
-  int numRows = (wordCount / wordsPerRow).ceil();
-  if (numRows < 1) numRows = 1;
-  return (entryWidgetHeight + (numRows - 1) * wordH)
-      .toDouble(); // + heading + SizedBox
+enum _RowKind { heading, words, gap }
+
+class _DictionaryRow {
+  const _DictionaryRow(
+    this.kind,
+    this.entryIndex, [
+    this.start = 0,
+    this.end = 0,
+  ]);
+
+  final _RowKind kind;
+  final int entryIndex;
+  final int start;
+  final int end;
 }
 
-double getWordWidgetWidth(int len) {
-  return (10.0 * len) + 40;
-}
-
-double getJump(
-  List<MapEntry<String, List<String>>> entries,
-  int targetEntryIndex,
-  double viewportWidth,
-) {
-  double ans = 0;
-  for (int i = 0; i < targetEntryIndex; i++) {
-    final entry = entries[i];
-    int wordCount = entry.value.length;
-    int wordLen = entry.key.length;
-    ans += getEntryHeight(wordCount, wordLen, viewportWidth);
-  }
-  return ans;
-}
-
-class _StableDictionaryDelegate extends SliverChildBuilderDelegate {
-  _StableDictionaryDelegate(
+class _StableDictionaryRowsDelegate extends SliverChildBuilderDelegate {
+  _StableDictionaryRowsDelegate(
     super.builder, {
     required super.childCount,
-    super.semanticIndexCallback,
     required this.contentExtent,
   });
 
@@ -80,206 +62,80 @@ class DictionaryTab extends ConsumerStatefulWidget {
 class _DictionaryTabState extends ConsumerState<DictionaryTab> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _searchTimer;
   String? _searchTerm;
-  int? _highlightedEntryIndex;
+  List<MapEntry<String, List<String>>> _searchEntries = const [];
+  PatternMap? _cachedMap;
+  bool? _cachedShowRegularPlurals;
+  bool? _cachedShowVerbForms;
+  bool? _cachedShowDescriptiveForms;
+  List<MapEntry<String, List<String>>> _cachedEntries = const [];
 
-  final Map<int, GlobalKey> _entryKeys = {};
-  final Map<String, GlobalKey> _wordKeys = {};
-
-  bool _userInterrupted = false;
-  bool _isJumping = false;
   bool _showRegularPlurals = false;
+  bool _showVerbForms = false;
+  bool _showDescriptiveForms = false;
 
-  double _contentExtent(
+  List<_DictionaryRow> _rowsFor(
     BuildContext context,
     List<MapEntry<String, List<String>>> entries,
     double viewportWidth,
   ) {
     final scaler = MediaQuery.textScalerOf(context);
-    final direction = Directionality.of(context);
-    final defaultStyle = DefaultTextStyle.of(context).style;
-
-    double textHeight(String text, TextStyle style) {
-      final painter = TextPainter(
-        text: TextSpan(text: text, style: style),
-        textDirection: direction,
-        textScaler: scaler,
-      )..layout();
-      final height = painter.height;
-      painter.dispose();
-      return height;
-    }
-
-    final wordStyle = defaultStyle.merge(const TextStyle(fontSize: 14));
     final wordPainter = TextPainter(
-      textDirection: direction,
+      textDirection: Directionality.of(context),
       textScaler: scaler,
     );
-    final wordHeight = textHeight('A', wordStyle) + 10 + 2 * borderWidth;
-    final headingHeight = math.max(
-      textHeight(
-        'A',
-        defaultStyle.merge(
-          const TextStyle(fontSize: 25, fontFamily: 'JetBrainsMonoBold'),
-        ),
-      ),
-      textHeight(
-            '1',
-            defaultStyle.merge(
-              const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-          ) +
-          6,
-    );
-    final wordWidths = <int, double>{};
-    final availableWidth = viewportWidth - 4 * insetPadding;
-    double extent = 2 * insetPadding;
-    for (final entry in entries) {
-      final wordLength = entry.key.length;
-      final width = wordWidths.putIfAbsent(wordLength, () {
-        wordPainter.text = TextSpan(text: 'M' * wordLength, style: wordStyle);
+    final widths = <int, double>{};
+    final rows = <_DictionaryRow>[];
+    for (var entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+      final entry = entries[entryIndex];
+      final width = widths.putIfAbsent(entry.key.length, () {
+        wordPainter.text = TextSpan(
+          text: 'M' * entry.key.length,
+          style: DefaultTextStyle.of(
+            context,
+          ).style.merge(const TextStyle(fontSize: 14)),
+        );
         wordPainter.layout();
-        return wordPainter.width + 40 + 2 * borderWidth;
+        return wordPainter.width + 20;
       });
-      final wordsPerRow = math.max(
+      final perRow = math.max(
         1,
-        ((availableWidth + wordWidgetSpacing) / (width + wordWidgetSpacing))
+        ((viewportWidth - 4 * insetPadding + wordWidgetSpacing) /
+                (width + wordWidgetSpacing))
             .floor(),
       );
-      final rows = math.max(1, (entry.value.length / wordsPerRow).ceil());
-      extent +=
-          2 * insetPadding +
-          headingHeight +
-          2 + // Account for pixel rounding in rendered heading text.
-          padding +
-          10 +
-          rows * wordHeight +
-          (rows - 1) * 4 +
-          _entrySpacing;
+      if (entryIndex > 0) rows.add(_DictionaryRow(_RowKind.gap, entryIndex));
+      rows.add(_DictionaryRow(_RowKind.heading, entryIndex));
+      for (var start = 0; start < entry.value.length; start += perRow) {
+        rows.add(
+          _DictionaryRow(
+            _RowKind.words,
+            entryIndex,
+            start,
+            math.min(start + perRow, entry.value.length),
+          ),
+        );
+      }
     }
     wordPainter.dispose();
-    return entries.isEmpty ? extent : extent - _entrySpacing;
+    return rows;
   }
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearch(List<MapEntry<String, List<String>>> entries) {
-    final search = _searchController.text.trim().toLowerCase().replaceAll(
-      '’',
-      "'",
-    );
-    if (search.isEmpty) {
-      setState(() {
-        _highlightedEntryIndex = null;
-        _searchTerm = null;
-      });
-      return;
-    }
-    int? foundEntryIndex;
-    String? foundWordKey;
-    for (int i = 0; i < entries.length; i++) {
-      for (final word in entries[i].value) {
-        if (word.toLowerCase() == search) {
-          foundEntryIndex = i;
-          foundWordKey = '$i-$word';
-          break;
-        }
-      }
-      if (foundEntryIndex != null) break;
-    }
+    final query = _searchController.text.trim();
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
     setState(() {
-      _highlightedEntryIndex = foundEntryIndex;
-      _searchTerm = search;
-    });
-
-    if (foundWordKey != null) {
-      _userInterrupted = false;
-      _scrollToWord(foundWordKey, entries, foundEntryIndex!);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Word not found'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _scrollToWord(
-    String wordKey,
-    List<MapEntry<String, List<String>>> entries,
-    int targetEntryIndex, [
-    int attempt = 0,
-  ]) async {
-    if (_userInterrupted) {
-      if (_isJumping) setState(() => _isJumping = false);
-      return;
-    }
-    final key = _wordKeys[wordKey];
-    if (attempt == 0) setState(() => _isJumping = true);
-
-    if (attempt == 0 && key != null && key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        alignment: 0.1,
-      );
-      setState(() => _isJumping = false);
-      return;
-    }
-
-    final scrollStep = MediaQuery.sizeOf(context).height;
-    if (attempt == 0 && _scrollController.hasClients) {
-      double jumpOffset = getJump(
-        entries,
-        targetEntryIndex,
-        MediaQuery.sizeOf(context).width,
-      );
-      jumpOffset = jumpOffset.clamp(
-        0.0,
-        _scrollController.position.maxScrollExtent,
-      );
-      await _scrollController.animateTo(
-        jumpOffset,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || !_scrollController.hasClients) return;
-      if (_userInterrupted) {
-        if (_isJumping) setState(() => _isJumping = false);
-        return;
-      }
-      final key = _wordKeys[wordKey];
-      if (key != null && key.currentContext != null) {
-        Scrollable.ensureVisible(
-          key.currentContext!,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          alignment: 0.1,
-        );
-        setState(() => _isJumping = false);
-      } else {
-        final targetOffset = (_scrollController.offset + scrollStep).clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        );
-        await _scrollController.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-        await Future.delayed(const Duration(milliseconds: 120));
-        if (!mounted) return;
-        _scrollToWord(wordKey, entries, targetEntryIndex, attempt + 1);
-      }
+      _searchTerm = query.isEmpty ? null : query;
+      _searchEntries = searchDictionaryEntries(entries, query);
     });
   }
 
@@ -287,58 +143,68 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
   Widget build(BuildContext context) {
     final isWindows =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-    final entries = ref
-        .watch(patternMapProvider(widget.dictionaryId))
-        .visibleEntries(showRegularPlurals: _showRegularPlurals);
+    final patternMap = ref.watch(patternMapProvider(widget.dictionaryId));
+    if (!identical(_cachedMap, patternMap) ||
+        _cachedShowRegularPlurals != _showRegularPlurals ||
+        _cachedShowVerbForms != _showVerbForms ||
+        _cachedShowDescriptiveForms != _showDescriptiveForms) {
+      _cachedMap = patternMap;
+      _cachedShowRegularPlurals = _showRegularPlurals;
+      _cachedShowVerbForms = _showVerbForms;
+      _cachedShowDescriptiveForms = _showDescriptiveForms;
+      _cachedEntries = patternMap.visibleEntries(
+        showRegularPlurals: _showRegularPlurals,
+        showVerbForms: _showVerbForms,
+        showDescriptiveForms: _showDescriptiveForms,
+      );
+      if (_searchTerm != null) {
+        _searchEntries = searchDictionaryEntries(_cachedEntries, _searchTerm!);
+      }
+    }
+    final entries = _searchTerm == null ? _cachedEntries : _searchEntries;
 
-    Widget buildEntry(BuildContext context, int index) {
-      final entry = entries[index];
-      final curColor = widget.colors[index % widget.colors.length];
-      return DictionaryEntryWidget(
-        entry: entry,
-        index: index,
-        curColor: curColor,
-        isEntryHighlighted: index == _highlightedEntryIndex,
-        entryKey: _entryKeys.putIfAbsent(index, () => GlobalKey()),
-        wordKeys: _wordKeys,
-        searchTerm: _searchTerm,
+    Widget formToggle(String label, bool value, ValueChanged<bool> change) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70)),
+          Switch(
+            value: value,
+            activeThumbColor: AppTheme.logoGreen,
+            onChanged: (enabled) {
+              if (_scrollController.hasClients) _scrollController.jumpTo(0);
+              setState(() {
+                change(enabled);
+              });
+            },
+          ),
+        ],
       );
     }
 
-    final pluralToggle = widget.dictionaryId == 'english'
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
+    final formToggles = widget.dictionaryId == 'english'
+        ? Wrap(
+            spacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text(
-                'Show regular plurals',
-                style: TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(width: 12),
-              Switch(
-                value: _showRegularPlurals,
-                activeThumbColor: AppTheme.logoGreen,
-                onChanged: (value) {
-                  _userInterrupted = true;
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(0);
-                  }
-                  setState(() {
-                    _showRegularPlurals = value;
-                    _isJumping = false;
-                    _highlightedEntryIndex = null;
-                    _searchTerm = null;
-                    _entryKeys.clear();
-                    _wordKeys.clear();
-                  });
-                },
-              ),
+              formToggle('Regular plurals', _showRegularPlurals, (value) {
+                _showRegularPlurals = value;
+              }),
+              formToggle('Verb forms', _showVerbForms, (value) {
+                _showVerbForms = value;
+              }),
+              formToggle('Adjectives / adverbs', _showDescriptiveForms, (
+                value,
+              ) {
+                _showDescriptiveForms = value;
+              }),
             ],
           )
         : null;
     final searchField = TextField(
       controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Search word...',
+        hintText: 'Search word or pattern...',
         hintStyle: TextStyle(color: AppTheme.logoGreen),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppTheme.logoGreen, width: 1),
@@ -348,129 +214,190 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
           borderSide: BorderSide(color: Colors.black.withAlpha(200), width: 1),
         ),
         fillColor: Colors.black.withAlpha(150),
-        suffixIcon: Icon(Icons.search, color: Colors.white),
-      ),
-      cursorColor: AppTheme.logoGreen,
-      style: TextStyle(color: AppTheme.logoGreen),
-      onSubmitted: (_) => _onSearch(entries),
-    );
-
-    return Stack(
-      children: [
-        Column(
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: isWindows
-                  ? const EdgeInsets.fromLTRB(
-                      2 * insetPadding,
-                      searchPadding,
-                      _scrollbarInset,
-                      searchPadding,
-                    )
-                  : const EdgeInsets.all(searchPadding),
-              child: Row(
-                children: [
-                  if (isWindows && pluralToggle != null) ...[
-                    pluralToggle,
-                    const SizedBox(width: 32),
-                  ],
-                  Expanded(
-                    child: isWindows
-                        ? Align(
-                            alignment: Alignment.centerRight,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: _windowsSearchMaxWidth,
-                              ),
-                              child: searchField,
-                            ),
-                          )
-                        : searchField,
+            IconButton(
+              tooltip: 'Search help',
+              icon: const Icon(Icons.help_outline, color: Colors.white70),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  backgroundColor: Colors.black,
+                  surfaceTintColor: Colors.transparent,
+                  shape: const RoundedRectangleBorder(
+                    side: BorderSide(color: AppTheme.logoGreen),
                   ),
-                  if (!isWindows && pluralToggle != null) ...[
-                    const SizedBox(width: 8),
-                    pluralToggle,
-                  ],
-                ],
-              ),
-            ),
-            Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  if (notification is UserScrollNotification) {
-                    _userInterrupted = true;
-                  }
-                  return false;
-                },
-                child: ScrollbarTheme(
-                  data: isWindows
-                      ? const ScrollbarThemeData(
-                          thumbColor: WidgetStatePropertyAll(
-                            AppTheme.logoGreen,
-                          ),
-                          trackColor: WidgetStatePropertyAll(
-                            Colors.transparent,
-                          ),
-                          trackBorderColor: WidgetStatePropertyAll(
-                            Colors.transparent,
-                          ),
-                          thickness: WidgetStatePropertyAll(6),
-                          radius: Radius.circular(3),
-                          crossAxisMargin: _scrollbarInset,
-                        )
-                      : ScrollbarTheme.of(context),
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: isWindows,
-                    trackVisibility: isWindows,
-                    interactive: true,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => isWindows
-                          ? ListView.custom(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(insetPadding),
-                              semanticChildCount: entries.length,
-                              childrenDelegate: _StableDictionaryDelegate(
-                                (context, childIndex) {
-                                  if (childIndex.isOdd) {
-                                    return const SizedBox(
-                                      height: _entrySpacing,
-                                    );
-                                  }
-                                  return buildEntry(context, childIndex ~/ 2);
-                                },
-                                childCount: entries.isEmpty
-                                    ? 0
-                                    : entries.length * 2 - 1,
-                                semanticIndexCallback: (widget, index) =>
-                                    index.isEven ? index ~/ 2 : null,
-                                contentExtent: _contentExtent(
-                                  context,
-                                  entries,
-                                  constraints.maxWidth,
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(insetPadding),
-                              itemCount: entries.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(height: _entrySpacing),
-                              itemBuilder: buildEntry,
-                            ),
+                  title: const Text(
+                    'Search help',
+                    style: TextStyle(color: AppTheme.logoGreen),
+                  ),
+                  content: const Text(
+                    'Text finds words starting with it (CAT finds CATS).\n'
+                    '? matches one letter (C?T finds CAT, COT).\n'
+                    '* matches zero or more letters (C*T finds CAT, CART).\n'
+                    'Wildcards match the whole word; results stay grouped by pattern.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  actions: [
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: AppTheme.logoGreen),
+                      ),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Close'),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Icon(Icons.search, color: Colors.white),
+            ),
           ],
         ),
-        if (_isJumping)
-          Container(
-            color: Colors.black.withAlpha((0.4 * 255).toInt()),
-            child: const Center(child: CircularProgressIndicator()),
+      ),
+      cursorColor: AppTheme.logoGreen,
+      style: TextStyle(color: AppTheme.logoGreen),
+      onChanged: (_) {
+        _searchTimer?.cancel();
+        _searchTimer = Timer(const Duration(milliseconds: 120), () {
+          if (mounted) _onSearch(_cachedEntries);
+        });
+      },
+      onSubmitted: (_) {
+        _searchTimer?.cancel();
+        _onSearch(_cachedEntries);
+      },
+    );
+
+    return Column(
+      children: [
+        Padding(
+          padding: isWindows
+              ? const EdgeInsets.fromLTRB(
+                  2 * insetPadding,
+                  searchPadding,
+                  _scrollbarInset,
+                  searchPadding,
+                )
+              : const EdgeInsets.all(searchPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // hive_generator's parser cannot read null-aware collection elements yet.
+              // ignore: use_null_aware_elements
+              if (formToggles != null) formToggles,
+              if (formToggles != null) const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: _windowsSearchMaxWidth,
+                  ),
+                  child: searchField,
+                ),
+              ),
+            ],
           ),
+        ),
+        if (_searchTerm != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2 * insetPadding),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_searchEntries.fold<int>(0, (total, entry) => total + entry.value.length)} matching words',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+          ),
+        Expanded(
+          child: ScrollbarTheme(
+            data: isWindows
+                ? const ScrollbarThemeData(
+                    thumbColor: WidgetStatePropertyAll(AppTheme.logoGreen),
+                    trackColor: WidgetStatePropertyAll(Colors.transparent),
+                    trackBorderColor: WidgetStatePropertyAll(
+                      Colors.transparent,
+                    ),
+                    thickness: WidgetStatePropertyAll(6),
+                    radius: Radius.circular(3),
+                    crossAxisMargin: _scrollbarInset,
+                  )
+                : ScrollbarTheme.of(context),
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: isWindows,
+              trackVisibility: isWindows,
+              interactive: true,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (_searchTerm != null && entries.isEmpty) {
+                    return ListView(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(insetPadding),
+                      children: const [
+                        Text(
+                          'No matching words',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    );
+                  }
+                  final rows = _rowsFor(context, entries, constraints.maxWidth);
+                  final scaler = MediaQuery.textScalerOf(context);
+                  double rowExtent(int index) => switch (rows[index].kind) {
+                    _RowKind.heading => math.max(
+                      52,
+                      scaler.scale(25) * 1.6 + 12,
+                    ),
+                    _RowKind.words => math.max(34, scaler.scale(14) * 1.6 + 12),
+                    _RowKind.gap => _entrySpacing,
+                  };
+                  final contentExtent = rows.indexed.fold<double>(
+                    2 * insetPadding,
+                    (total, item) => total + rowExtent(item.$1),
+                  );
+                  return ListView.custom(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(insetPadding),
+                    itemExtentBuilder: (index, dimensions) => rowExtent(index),
+                    childrenDelegate: _StableDictionaryRowsDelegate(
+                      (context, rowIndex) {
+                        final row = rows[rowIndex];
+                        if (row.kind == _RowKind.gap) {
+                          return const SizedBox.shrink();
+                        }
+                        final entry = entries[row.entryIndex];
+                        return DictionaryEntryWidget(
+                          entry: entry,
+                          index: row.entryIndex,
+                          curColor: widget
+                              .colors[row.entryIndex % widget.colors.length],
+                          isEntryHighlighted: false,
+                          entryKey: row.kind == _RowKind.heading
+                              ? ValueKey('heading-${entry.key}')
+                              : ValueKey('row-${entry.key}-${row.start}'),
+                          searchTerm: null,
+                          compactRow: true,
+                          showHeading: row.kind == _RowKind.heading,
+                          displayedWords: row.kind == _RowKind.heading
+                              ? const []
+                              : entry.value.sublist(row.start, row.end),
+                        );
+                      },
+                      childCount: rows.length,
+                      contentExtent: contentExtent,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

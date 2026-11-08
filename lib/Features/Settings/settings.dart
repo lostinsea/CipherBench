@@ -128,6 +128,32 @@ class _SettingsState extends ConsumerState<Settings> {
                     if (mounted) setState(() {});
                   },
                 ),
+                const SizedBox(height: 20),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const HeadingWidget(
+                    neonColor: AppTheme.logoGreen,
+                    title: 'Frequency based word list order',
+                    numIcon: Icon(Icons.sort, color: Colors.black),
+                    showUnderline: false,
+                  ),
+                  subtitle: const Text(
+                    'Show common English puzzle suggestions first; the main Dictionary is unchanged.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  value: prefs?.frequencyWordOrder ?? true,
+                  onChanged: (value) async {
+                    final current = settingsBox?.get('prefs') as SettingPrefs?;
+                    if (current == null) {
+                      throw StateError('Settings have not been initialized.');
+                    }
+                    await settingsBox!.put(
+                      'prefs',
+                      current.copyWith(frequencyWordOrder: value),
+                    );
+                    if (mounted) setState(() {});
+                  },
+                ),
               ],
             ),
           ),
