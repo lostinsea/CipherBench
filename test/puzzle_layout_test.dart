@@ -468,25 +468,6 @@ void main() {
       }
     });
 
-    testWidgets('keeps the existing 1px green selected outline on mobile', (
-      tester,
-    ) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      final container = ProviderContainer(
-        overrides: [gameProvider.overrideWith(_CellOutlineGameProvider.new)],
-      );
-      addTearDown(container.dispose);
-      try {
-        await _pumpOutlineCells(tester, container: container);
-
-        final selected = _cellDecoration(tester, _firstCellKey);
-        expect(selected.color, const Color.fromARGB(255, 3, 0, 175));
-        expect(selected.border, Border.all(color: gameCellColor, width: 1));
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    });
-
     testWidgets(
       'keeps the current Windows outline amber during rapid left and right moves',
       (tester) async {

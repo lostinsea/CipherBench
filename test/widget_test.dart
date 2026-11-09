@@ -256,7 +256,6 @@ Future<void> _pumpResponsiveGame(
             gameMode: GameMode.assisted,
             language: Language.english,
           ),
-          addKeyboard: false,
         ),
       ),
     ),
@@ -337,7 +336,6 @@ Future<void> _pumpDesktopGameControls(
             gameMode: GameMode.manual,
             language: language,
           ),
-          addKeyboard: false,
         ),
       ),
     ),
@@ -360,7 +358,7 @@ void _expectResizeGameAnswers(
 void main() {
   group('desktop game controls', () {
     testWidgets(
-      'desktop game uses physical keyboard shortcuts instead of the virtual keyboard',
+      'Windows game uses physical keyboard shortcuts and desktop controls',
       (tester) async {
         debugDefaultTargetPlatformOverride = TargetPlatform.windows;
         try {
@@ -382,11 +380,9 @@ void main() {
           );
 
           expect(find.byType(KeyboardShortcutsWidget), findsOneWidget);
-          expect(find.byType(AvailableCommandsWidget), findsNothing);
           expect(find.text(_englishWindowsHelp), findsOneWidget);
           expect(find.widgetWithText(OutlinedButton, 'Undo'), findsOneWidget);
           expect(find.widgetWithText(OutlinedButton, 'Reset'), findsOneWidget);
-          expect(find.byType(KeyboardWidget), findsNothing);
         } finally {
           debugDefaultTargetPlatformOverride = null;
         }
@@ -464,43 +460,6 @@ void main() {
         expect(grid().zoomPercent, 280);
         expect(geometry().rowHeight, closeTo(204.75, 0.0001));
         expect(tester.widget<IconButton>(zoomInButton).onPressed, isNull);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    });
-
-    testWidgets('Android keeps the default puzzle row height', (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      try {
-        await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
-              home: GamePageLayout(
-                config: GamePageConfig(
-                  gameId: 'Aristocrat',
-                  gameMode: GameMode.assisted,
-                  language: Language.english,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        expect(find.byTooltip('Zoom out'), findsNothing);
-        expect(find.byTooltip('Zoom in'), findsNothing);
-        final grid = tester.widget<CryptogramGridWidget>(
-          find.byType(CryptogramGridWidget),
-        );
-        expect(grid.zoomPercent, 100);
-        expect(grid.extraRowGap, 0);
-        expect(grid.centerRows, isFalse);
-        expect(
-          PuzzleGeometry(
-            grid.zoomPercent,
-            extraRowGap: grid.extraRowGap,
-          ).rowHeight,
-          65,
-        );
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
@@ -606,33 +565,6 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Android retains its existing command strip without mouse controls',
-      (tester) async {
-        _ignoreHeaderListTileMaterialWarning();
-        final container = ProviderContainer(
-          overrides: [gameProvider.overrideWith(_ResizeGameProvider.new)],
-        );
-        addTearDown(container.dispose);
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
-        try {
-          await _pumpDesktopGameControls(
-            tester,
-            container: container,
-            language: Language.spanish,
-          );
-
-          expect(find.byType(AvailableCommandsWidget), findsOneWidget);
-          expect(find.text(_englishWindowsHelp), findsNothing);
-          expect(find.text(_spanishWindowsHelp), findsNothing);
-          expect(find.widgetWithText(OutlinedButton, 'Undo'), findsNothing);
-          expect(find.widgetWithText(OutlinedButton, 'Reset'), findsNothing);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      },
-    );
-
     testWidgets('Windows Undo button uses the shared undo action', (
       tester,
     ) async {
@@ -704,10 +636,7 @@ void main() {
             ),
           );
           expect(button.style!.foregroundColor!.resolve({}), Colors.white);
-          expect(
-            button.style!.side!.resolve({})!.color,
-            AppTheme.logoGreen,
-          );
+          expect(button.style!.side!.resolve({})!.color, AppTheme.logoGreen);
         }
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
@@ -836,43 +765,6 @@ void main() {
         }
       },
     );
-
-    testWidgets('Android puzzle grid keeps the desktop width cap', (
-      tester,
-    ) async {
-      _ignoreHeaderListTileMaterialWarning();
-      final originalGameSize = (GameSetup.width, GameSetup.height);
-      addTearDown(() {
-        GameSetup.width = originalGameSize.$1;
-        GameSetup.height = originalGameSize.$2;
-      });
-      final container = ProviderContainer(
-        overrides: [gameProvider.overrideWith(_ResponsiveGridGameProvider.new)],
-      );
-      addTearDown(container.dispose);
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      try {
-        tester.view.physicalSize = const Size(2000, 600);
-        tester.view.devicePixelRatio = 1;
-        GameSetup.width = 2000;
-        GameSetup.height = 600;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await _pumpResponsiveGame(tester, container);
-
-        expect(
-          tester.getSize(find.byType(LayoutBuilder)).width,
-          desktopContentWidth,
-        );
-        final mobileRows = _renderedGridCellBoundsByRow(tester);
-        expect(
-          mobileRows.first.first.left,
-          closeTo(tester.getRect(find.byType(LayoutBuilder)).left, 0.001),
-        );
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    });
 
     testWidgets('Windows resize and zoom preserve answer selection and undo', (
       tester,
@@ -1144,77 +1036,6 @@ void main() {
     );
 
     testWidgets(
-      'Android ArrowRight keeps scrolling animated when it crosses the viewport',
-      (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
-        final container = ProviderContainer(
-          overrides: [gameProvider.overrideWith(_RapidScrollGameProvider.new)],
-        );
-        addTearDown(container.dispose);
-        try {
-          await tester.pumpWidget(
-            UncontrolledProviderScope(
-              container: container,
-              child: MaterialApp(
-                home: Scaffold(
-                  body: Align(
-                    alignment: Alignment.topLeft,
-                    child: SizedBox(
-                      width: 96,
-                      height: 200,
-                      child: KeyboardShortcutsWidget(
-                        gameKey: _rapidScrollGameKey,
-                        language: Language.english,
-                        child: Consumer(
-                          builder: (context, ref, child) {
-                            return SingleChildScrollView(
-                              key: _rapidScrollViewportKey,
-                              controller: ref.watch(
-                                scrollProvider(_rapidScrollGameKey),
-                              ),
-                              padding: const EdgeInsets.all(insetPadding),
-                              child: child,
-                            );
-                          },
-                          child: const CryptogramGridWidget(
-                            gameKey: _rapidScrollGameKey,
-                            gameId: 'Patristocrat',
-                            zoomPercent: 200,
-                            bottomInset: 0,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-          Focus.of(
-            tester.element(find.byKey(_rapidScrollViewportKey)),
-          ).requestFocus();
-          await tester.pump();
-
-          final scroll = container.read(scrollProvider(_rapidScrollGameKey));
-          final initialOffset = scroll.offset;
-          await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-          await tester.pump();
-
-          expect(
-            container.read(gameProvider(_rapidScrollGameKey)).selectedIdx,
-            1,
-          );
-          expect(scroll.offset, initialOffset);
-
-          await tester.pump(const Duration(milliseconds: 300));
-          expect(scroll.offset, greaterThan(initialOffset));
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      },
-    );
-
-    testWidgets(
       'Windows ArrowRight cancels an in-flight scroll for a visible cell',
       (tester) async {
         debugDefaultTargetPlatformOverride = TargetPlatform.windows;
@@ -1402,52 +1223,6 @@ void main() {
       }
     });
 
-    testWidgets('mobile ignores ArrowUp and ArrowDown shortcuts', (
-      tester,
-    ) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      final container = ProviderContainer(
-        overrides: [
-          gameProvider.overrideWith(_VerticalShortcutGameProvider.new),
-        ],
-      );
-      addTearDown(container.dispose);
-      try {
-        await _pumpKeyboardShortcuts(
-          tester,
-          container: container,
-          language: Language.english,
-        );
-        final scrollSubscription = container.listen(
-          scrollProvider(_gameKey),
-          (_, _) {},
-        );
-        addTearDown(scrollSubscription.close);
-        container
-            .read(scrollProvider(_gameKey).notifier)
-            .updateLayout(
-              const PuzzleRows(
-                [
-                  [0, 1],
-                  [2, 3],
-                ],
-                [0, 0, 1, 1],
-              ),
-              const PuzzleGeometry(100),
-              200,
-              600,
-              0,
-            );
-
-        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-        await tester.pump();
-
-        expect(container.read(gameProvider(_gameKey)).selectedIdx, 1);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    });
-
     testWidgets('Control+Z undoes a physical keyboard letter', (tester) async {
       final container = ProviderContainer(
         overrides: [gameProvider.overrideWith(_TestGameProvider.new)],
@@ -1478,34 +1253,5 @@ void main() {
       );
     });
 
-    testWidgets('command widget does not duplicate commands on rebuild', (
-      tester,
-    ) async {
-      GameSetup.width = 1200;
-      GameSetup.height = 800;
-      final commands = KeyboardShortcutsWidget.commands(Language.spanish);
-      late StateSetter rebuild;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: StatefulBuilder(
-            builder: (context, setState) {
-              rebuild = setState;
-              return AvailableCommandsWidget(commands: commands);
-            },
-          ),
-        ),
-      );
-      rebuild(() {});
-      await tester.pump();
-      rebuild(() {});
-      await tester.pump();
-
-      expect(find.byType(CommandWidget), findsNWidgets(commands.length));
-      for (final entry in commands.entries) {
-        expect(find.text(entry.key), findsOneWidget);
-        expect(find.text(entry.value), findsOneWidget);
-      }
-    });
   });
 }

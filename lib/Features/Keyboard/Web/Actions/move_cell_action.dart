@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
@@ -12,13 +11,11 @@ class MoveCellAction extends Action<MoveCellIntent> {
   @override
   void invoke(covariant MoveCellIntent intent) {
     final game = ref.read(gameProvider(gameKey).notifier);
-    final isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     switch (intent.direction) {
       case CellDirection.right:
-        game.incrementCell(1, immediateScroll: isWindows);
+        game.incrementCell(1, immediateScroll: true);
       case CellDirection.left:
-        game.incrementCell(-1, immediateScroll: isWindows);
+        game.incrementCell(-1, immediateScroll: true);
       case CellDirection.up:
         game.moveVertical(-1);
       case CellDirection.down:

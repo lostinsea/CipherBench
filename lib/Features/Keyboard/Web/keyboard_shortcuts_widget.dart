@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,17 +21,12 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
     "Ctrl + Z": "Undo",
     "Ctrl + Backspace": "Reset",
     "Backspace": "Erase",
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
-      "Left / Up / Right / Down": "Move"
-    else
-      "Left / Right": "Move",
+    "Left / Up / Right / Down": "Move",
     if (language == Language.spanish) "Shift + N": "Type Ñ",
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     return Shortcuts(
       // Maps ctrl + Z and cmd + Z to undo last keyboard action
       // Maps ctrl + backspace to reset
@@ -56,14 +50,12 @@ class KeyboardShortcutsWidget extends ConsumerWidget {
         SingleActivator(LogicalKeyboardKey.arrowRight): const MoveCellIntent(
           CellDirection.right,
         ),
-        if (isWindows)
-          SingleActivator(LogicalKeyboardKey.arrowUp): const MoveCellIntent(
-            CellDirection.up,
-          ),
-        if (isWindows)
-          SingleActivator(LogicalKeyboardKey.arrowDown): const MoveCellIntent(
-            CellDirection.down,
-          ),
+        SingleActivator(LogicalKeyboardKey.arrowUp): const MoveCellIntent(
+          CellDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowDown): const MoveCellIntent(
+          CellDirection.down,
+        ),
         if (language == Language.spanish)
           SingleActivator(LogicalKeyboardKey.keyN, shift: true):
               EnnePressIntent(),

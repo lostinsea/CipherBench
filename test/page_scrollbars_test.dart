@@ -150,10 +150,10 @@ void main() {
 
   tearDownAll(closeInstalledDatabase);
 
-  testWidgets('large English groups build only visible rows off Windows', (
+  testWidgets('Windows large English groups build only visible rows', (
     tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1;
     try {

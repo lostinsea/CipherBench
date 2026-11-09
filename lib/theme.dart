@@ -21,17 +21,6 @@ const decorationTextFS = 10.0;
 const padding = 4.0;
 // might need to change if screen size changes (rotation)
 double get screenW => GameSetup.width;
-double get screenH => GameSetup.height;
-double get maxLength => (screenW * 0.9) - insetPadding * 2;
-//styling for keyboard
-const double spacing = 4;
-const double undoButtonHeight = 40;
-const double horizontalBuffer = 20;
-double get safeWidth => screenW - horizontalBuffer;
-final maxKeysInRow = 10;
-double get keyWidth =>
-    (safeWidth - (maxKeysInRow - 1) * spacing) / maxKeysInRow;
-double get keyboardH => screenH * 0.25; // Height of the keyboard widget
 const double desktopCommandsHeight = 56;
 const double desktopSuggestionsHeight = 96;
 const double desktopSuggestionsGap = 12;
@@ -89,8 +78,6 @@ class AppTheme {
   static const Color surface = Color(0xFFF5F5F5);
   static const Color accent = Color(0xFFEF5350); // Softer red
   static const Color logoGreen = Color(0xFF00FF41); // Also used for logo
-  static const Color keyboardKey = Color(0xFFFAFAFA);
-  static const Color keyboardKeyText = logoGreen;
 
   static const backgroundColors = [
     Color(0xFF0a0a0a),
@@ -191,12 +178,6 @@ class AppTheme {
     boxShadow: [
       BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
     ],
-  );
-
-  static BoxDecoration keyboardKeyDecoration = BoxDecoration(
-    color: keyboardKey,
-    borderRadius: BorderRadius.circular(8),
-    border: Border.all(color: Colors.grey.shade300),
   );
 
   static TextStyle keyboardKeyTextStyle = TextStyle(

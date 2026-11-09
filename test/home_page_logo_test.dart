@@ -225,28 +225,5 @@ void main() {
         }
       },
     );
-
-    testWidgets(
-      'mobile keeps the original centered logo in the scroll column',
-      (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
-        try {
-          await _pumpHomePage(tester, const Size(800, 600));
-
-          final logoRect = tester.getRect(_homeLogo());
-          expect(logoRect.size, const Size(400, 400));
-          expect(logoRect.center.dx, 400);
-          expect(logoRect.top, 111);
-          _expectLogoAsset(tester, 'assets/image/scioly-logo.png');
-          expect(
-            tester.getRect(_button('Aristocrat')).top,
-            greaterThan(logoRect.bottom),
-          );
-          expect(tester.takeException(), isNull);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      },
-    );
   });
 }

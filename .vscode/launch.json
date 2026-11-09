@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "projects",
+            "name": "CipherBench",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "projects (profile mode)",
+            "name": "CipherBench (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "projects (release mode)",
+            "name": "CipherBench (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

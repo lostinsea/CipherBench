@@ -22,6 +22,6 @@ class GamePage extends ConsumerWidget {
       gameMode: gameMode,
       language: language,
     );
-    return GamePageLayout(config: config, addKeyboard: !usePhysicalKeyboard);
+    return GamePageLayout(config: config);
   }
 }

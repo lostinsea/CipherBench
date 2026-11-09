@@ -40,16 +40,12 @@ export 'Features/Game/game_page.dart';
 
 export 'Features/Keyboard/Shared/Models/keyboard.dart';
 export 'Features/Keyboard/Shared/Providers/keyboard_provider.dart';
-export 'Features/Keyboard/Mobile/Widgets/keyboard_widget.dart';
-export 'Features/Keyboard/Mobile/Widgets/keyboard_key_widget.dart';
 export 'Features/Keyboard/Web/Actions/undo_cell_action.dart';
 export 'Features/Keyboard/Web/Actions/reset_cell_action.dart';
 export 'Features/Keyboard/Web/Actions/delete_cell_action.dart';
 export 'Features/Keyboard/Web/Actions/key_press_action.dart';
 export 'Features/Keyboard/Web/Actions/move_cell_action.dart';
 export 'Features/Keyboard/Web/Actions/enne_press_action.dart';
-export 'Features/Keyboard/Web/Widgets/available_commands_widget.dart';
-export 'Features/Keyboard/Web/Widgets/command_widget.dart';
 export 'Features/Keyboard/Web/keyboard_shortcuts_widget.dart';
 
 export 'Features/Quotes/Models/solved_quote.dart';

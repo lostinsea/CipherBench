@@ -4,7 +4,7 @@
 
 **A Windows workbench for Science Olympiad Codebusters practice.** Solve aristocrats, patristocrats, and xenocrypts with a physical keyboard. Adjust puzzle zoom, use hints and word-pattern lookup, and track your progress.
 
-CipherBench is a Windows-focused fork of an earlier cryptogram project. See [credits and upstream provenance](CREDITS.md).
+CipherBench is a Windows-only fork of an earlier cryptogram project. See [credits and upstream provenance](CREDITS.md).
 
 > **Release status:** We can keep improving and building the Windows app locally, but there is no public binary release. The upstream README calls the code MIT-licensed without providing the complete notice, and rights to several bundled assets remain unverified. Public release publication stays gated until those issues are resolved; see [licensing and credits](#licensing-and-credits).
 
@@ -88,7 +88,7 @@ Built with:
 
 The [Windows release workflow](.github/workflows/windows-release.yml) can check builds on manual runs without publishing them. Packaging and draft-release creation require a version tag and explicit approval. The local installer above is **not** a published GitHub Release.
 
-Before enabling public release packaging, obtain the original MIT copyright and permission notice or written authorization, add an accurate root `LICENSE`, and verify the rights to bundled audio, quotes, word lists, and the original image (or replace assets whose rights cannot be established). Complete the [third-party notices](THIRD_PARTY_NOTICES.md) and remove its `RELEASE_BLOCKED` marker only after those checks. Then set `WINDOWS_RELEASE_APPROVED` to `true` and push a tag such as `v2.0.0`; its version must match `pubspec.yaml` and `installer\CipherBench.iss`. The workflow creates a **draft** Windows-only release for review, not an automatically published one.
+Before enabling public release packaging, obtain the original MIT copyright and permission notice or written authorization, add an accurate root `LICENSE`, and verify the rights to bundled audio, quotes, word lists, and artwork (or replace assets whose rights cannot be established). Complete the [third-party notices](THIRD_PARTY_NOTICES.md) and remove its `RELEASE_BLOCKED` marker only after those checks. Then set `WINDOWS_RELEASE_APPROVED` to `true` and push a tag such as `v2.0.0`; its version must match `pubspec.yaml` and `installer\CipherBench.iss`. The workflow creates a **draft** Windows-only release for review, not an automatically published one.
 
 ---
 

@@ -218,7 +218,6 @@ Future<void> _pumpGame(
               gameMode: GameMode.manual,
               language: Language.english,
             ),
-            addKeyboard: false,
           ),
         ),
       ),
@@ -973,83 +972,6 @@ void main() {
           expect(find.byType(ListView), findsNothing);
           expect(find.text('ABCDE'), findsNothing);
           expect(find.text('No matching words'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-          await tester.pumpWidget(const SizedBox.shrink());
-          await tester.pump(const Duration(milliseconds: 1));
-        });
-      },
-    );
-
-    testWidgets('non-Windows retains the compact suggestion panel height', (
-      tester,
-    ) async {
-      _ignoreHeaderListTileMaterialWarning();
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await _withPlatform(TargetPlatform.android, () async {
-        final container = ProviderContainer(
-          overrides: [
-            gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
-            patternMapProvider.overrideWith(_ShortPatternMapProvider.new),
-          ],
-        );
-        addTearDown(container.dispose);
-        await _pumpGame(tester, container, const Size(800, 600));
-
-        expect(
-          tester.getSize(_suggestionsPanel(isWindows: false)).height,
-          containerHeight * 2,
-        );
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump(const Duration(milliseconds: 1));
-      });
-    });
-
-    testWidgets(
-      'non-Windows keeps suggestion buttons above the horizontal scrollbar gutter',
-      (tester) async {
-        _ignoreHeaderListTileMaterialWarning();
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await _withPlatform(TargetPlatform.android, () async {
-          final container = ProviderContainer(
-            overrides: [
-              gameProvider.overrideWith(_ShortSuggestionsGameProvider.new),
-              patternMapProvider.overrideWith(_ShortPatternMapProvider.new),
-            ],
-          );
-          addTearDown(container.dispose);
-          await _pumpGame(tester, container, const Size(800, 600));
-
-          final suggestion = find.ancestor(
-            of: find.text('ABCDE'),
-            matching: find.byType(StyledButtonWidget),
-          );
-          final button = find.descendant(
-            of: suggestion,
-            matching: find.byType(InkWell),
-          );
-          final wordList = find.byType(ListView);
-
-          expect(suggestion, findsOneWidget);
-          expect(button, findsOneWidget);
-          expect(wordList, findsOneWidget);
-          final theme = ScrollbarTheme.of(
-            tester.element(
-              find.descendant(
-                of: _suggestionsPanel(isWindows: false),
-                matching: find.byType(Scrollbar),
-              ),
-            ),
-          );
-          expect(theme.trackColor!.resolve({}), const Color(0xFF152A35));
-          expect(theme.trackBorderColor!.resolve({}), Colors.white38);
-          expect(tester.getSize(button).height, containerHeight);
-          expect(
-            tester.getRect(button).bottom,
-            lessThanOrEqualTo(tester.getRect(wordList).bottom - 6),
-          );
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pump(const Duration(milliseconds: 1));

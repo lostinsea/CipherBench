@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scioly_codebusters/library.dart';
 
@@ -22,14 +21,11 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     GameSetup.init(context);
-    final isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-
     return Container(
       decoration: AppTheme.backgroundGradient,
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 5,
-        horizontal: isWindows ? windowsScreenInset : 10,
+        horizontal: windowsScreenInset,
       ),
       child: Stack(
         children: [
@@ -73,10 +69,6 @@ class _HomePageState extends State<HomePage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             const SizedBox(height: 50),
-                            if (!isWindows) ...[
-                              const HomeLogo(),
-                              const SizedBox(height: 50),
-                            ],
                             HomeButtonWidget(
                               btnText: "Aristocrat",
                               neonColor: Colors.pinkAccent,
@@ -172,14 +164,13 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-                if (isWindows)
-                  const Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: HomeLogo(),
-                    ),
+                const Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: HomeLogo(),
                   ),
+                ),
               ],
             ),
           ),

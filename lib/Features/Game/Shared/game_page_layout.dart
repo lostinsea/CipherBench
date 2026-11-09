@@ -1,17 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class GamePageLayout extends ConsumerStatefulWidget {
   final GamePageConfig config;
-  final bool addKeyboard;
 
-  const GamePageLayout({
-    super.key,
-    required this.config,
-    this.addKeyboard = true,
-  });
+  const GamePageLayout({super.key, required this.config});
 
   @override
   ConsumerState<GamePageLayout> createState() => _GamePageLayoutState();
@@ -22,8 +16,6 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final gameId = widget.config.gameId;
     final gameMode = widget.config.gameMode;
     final language = widget.config.language;
@@ -47,7 +39,7 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
       previous,
       next,
     ) {
-      if (!isWindows || !next) return;
+      if (!next) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref
@@ -56,35 +48,21 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
       });
     });
 
-    final bottomInset = widget.addKeyboard ? keyboardH : desktopCommandsHeight;
+    const bottomInset = desktopCommandsHeight;
     final suggestionInset = showSuggestions
-        ? isWindows
-              ? desktopSuggestionsHeight + desktopSuggestionsGap * 2
-              : containerHeight * 2
+        ? desktopSuggestionsHeight + desktopSuggestionsGap * 2
         : 0.0;
     final puzzleScrollView = SingleChildScrollView(
       controller: scrollController,
-      padding: EdgeInsets.fromLTRB(
-        insetPadding,
-        insetPadding,
-        insetPadding,
-        insetPadding + (isWindows ? 0 : suggestionInset),
-      ),
+      padding: const EdgeInsets.all(insetPadding),
       child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWindows ? double.infinity : desktopContentWidth,
-          ),
-          child: CryptogramGridWidget(
-            gameKey: key,
-            gameId: gameId,
-            zoomPercent: isWindows ? _zoomPercent * 140 ~/ 100 : _zoomPercent,
-            extraRowGap: isWindows
-                ? const PuzzleGeometry(140).rowHeight * 0.25
-                : 0,
-            bottomInset: isWindows ? 0 : suggestionInset,
-            centerRows: isWindows,
-          ),
+        child: CryptogramGridWidget(
+          gameKey: key,
+          gameId: gameId,
+          zoomPercent: _zoomPercent * 140 ~/ 100,
+          extraRowGap: const PuzzleGeometry(140).rowHeight * 0.25,
+          bottomInset: 0,
+          centerRows: true,
         ),
       ),
     );
@@ -108,23 +86,21 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
                     ),
                   ),
                   const Spacer(),
-                  if (isWindows) ...[
-                    IconButton(
-                      tooltip: 'Zoom out',
-                      icon: const Icon(Icons.zoom_out),
-                      onPressed: _zoomPercent > 75
-                          ? () => setState(() => _zoomPercent -= 5)
-                          : null,
-                    ),
-                    Text('$_zoomPercent%'),
-                    IconButton(
-                      tooltip: 'Zoom in',
-                      icon: const Icon(Icons.zoom_in),
-                      onPressed: _zoomPercent < 200
-                          ? () => setState(() => _zoomPercent += 5)
-                          : null,
-                    ),
-                  ],
+                  IconButton(
+                    tooltip: 'Zoom out',
+                    icon: const Icon(Icons.zoom_out),
+                    onPressed: _zoomPercent > 75
+                        ? () => setState(() => _zoomPercent -= 5)
+                        : null,
+                  ),
+                  Text('$_zoomPercent%'),
+                  IconButton(
+                    tooltip: 'Zoom in',
+                    icon: const Icon(Icons.zoom_in),
+                    onPressed: _zoomPercent < 200
+                        ? () => setState(() => _zoomPercent += 5)
+                        : null,
+                  ),
                   if (isCorrect && !showComplete)
                     StyledButtonWidget(
                       valueIcon: const Icon(
@@ -144,45 +120,38 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
           fit: StackFit.expand,
           children: [
             Padding(
-              padding: EdgeInsets.all(isWindows ? windowsScreenInset : 0),
+              padding: const EdgeInsets.all(windowsScreenInset),
               child: Stack(
                 children: [
                   Positioned.fill(
                     top: panelHeight + padding,
-                    bottom: bottomInset + (isWindows ? suggestionInset : 0),
-                    child: isWindows
-                        ? ScrollbarTheme(
-                            data: const ScrollbarThemeData(
-                              thumbColor: WidgetStatePropertyAll(
-                                AppTheme.logoGreen,
-                              ),
-                              trackColor: WidgetStatePropertyAll(
-                                Colors.transparent,
-                              ),
-                              trackBorderColor: WidgetStatePropertyAll(
-                                Colors.transparent,
-                              ),
-                              thickness: WidgetStatePropertyAll(6),
-                              radius: Radius.circular(3),
-                            ),
-                            child: Scrollbar(
-                              controller: scrollController,
-                              thumbVisibility: true,
-                              trackVisibility: true,
-                              interactive: true,
-                              scrollbarOrientation: ScrollbarOrientation.right,
-                              child: puzzleScrollView,
-                            ),
-                          )
-                        : puzzleScrollView,
+                    bottom: bottomInset + suggestionInset,
+                    child: ScrollbarTheme(
+                      data: const ScrollbarThemeData(
+                        thumbColor: WidgetStatePropertyAll(AppTheme.logoGreen),
+                        trackColor: WidgetStatePropertyAll(Colors.transparent),
+                        trackBorderColor: WidgetStatePropertyAll(
+                          Colors.transparent,
+                        ),
+                        thickness: WidgetStatePropertyAll(6),
+                        radius: Radius.circular(3),
+                      ),
+                      child: Scrollbar(
+                        controller: scrollController,
+                        thumbVisibility: true,
+                        trackVisibility: true,
+                        interactive: true,
+                        scrollbarOrientation: ScrollbarOrientation.right,
+                        child: puzzleScrollView,
+                      ),
+                    ),
                   ),
                   if (showSuggestions)
                     DictionaryPopoverWidget(
                       gameId: gameId,
                       gameMode: gameMode,
                       dictionaryId: language.name,
-                      bottomInset:
-                          bottomInset + (isWindows ? desktopSuggestionsGap : 0),
+                      bottomInset: bottomInset + desktopSuggestionsGap,
                     ),
                   Positioned(
                     top: 0,
@@ -201,22 +170,7 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: widget.addKeyboard
-                        ? KeyboardWidget(gameKey: key, language: language)
-                        : isWindows
-                        ? _WindowsGameControls(language: language)
-                        : Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: desktopContentWidth,
-                              ),
-                              child: AvailableCommandsWidget(
-                                commands: KeyboardShortcutsWidget.commands(
-                                  language,
-                                ),
-                              ),
-                            ),
-                          ),
+                    child: _WindowsGameControls(language: language),
                   ),
                 ],
               ),
@@ -227,14 +181,12 @@ class _GamePageLayoutState extends ConsumerState<GamePageLayout> {
         ),
       ),
     );
-    return widget.addKeyboard
-        ? game
-        : KeyboardShortcutsWidget(
-            gameKey: key,
-            language: language,
-            confirmReset: isWindows,
-            child: game,
-          );
+    return KeyboardShortcutsWidget(
+      gameKey: key,
+      language: language,
+      confirmReset: true,
+      child: game,
+    );
   }
 }
 
@@ -250,7 +202,6 @@ class _WindowsGameControls extends StatelessWidget {
       for (final entry in commands.entries)
         '${entry.value == 'Type Ñ' ? 'Ñ' : entry.value}: '
             '${switch (entry.key) {
-              'Left / Right' => '←/→',
               'Left / Up / Right / Down' => '← ↑ → ↓',
               _ => entry.key.replaceAll(' + ', '+'),
             }}',

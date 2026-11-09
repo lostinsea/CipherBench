@@ -2,9 +2,6 @@ import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
-import 'package:scioly_codebusters/library.dart';
 
 class HomeButtonWidget extends ConsumerStatefulWidget {
   final String btnText;
@@ -66,18 +63,10 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
       CurvedAnimation(parent: _animationController, curve: Curves.linear),
     );
 
-    if (kIsWeb) {
-      // Make sure animations works on both web and mobile
-      gradientColor = [
-        widget.neonColor.withAlpha(widget.finalAlpha),
-        widget.neonColor.withAlpha(widget.initialAlpha),
-      ];
-    } else {
-      gradientColor = [
-        widget.neonColor.withAlpha(widget.initialAlpha),
-        widget.neonColor.withAlpha(widget.finalAlpha),
-      ];
-    }
+    gradientColor = [
+      widget.neonColor.withAlpha(widget.initialAlpha),
+      widget.neonColor.withAlpha(widget.finalAlpha),
+    ];
   }
 
   @override
@@ -97,12 +86,7 @@ class _HomeButtonWidgetState extends ConsumerState<HomeButtonWidget>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final buttonWidth =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
-        ? min(300.0, size.width * (5 / 6))
-        : size.width >= mobileMaxWidth
-        ? size.height / 2
-        : size.width * (5 / 6);
+    final buttonWidth = min(300.0, size.width * (5 / 6));
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {

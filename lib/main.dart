@@ -27,14 +27,11 @@ void main() async {
   appDatabase = await AppDatabase.open();
   settingsStore = SettingsStore(appDatabase!);
 
-  AudioController? audioController;
-  if (!kIsWeb) {
-    audioController = AudioController();
-    await audioController.initialize();
-  }
+  final audioController = AudioController();
+  await audioController.initialize();
   AppLifecycleListener(
     onExitRequested: () async {
-      audioController?.dispose();
+      audioController.dispose();
       settingsStore?.dispose();
       appDatabase?.close();
       return AppExitResponse.exit;
