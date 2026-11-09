@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/library.dart';
+
+import 'database_test_utils.dart';
 
 const _gameKey = 'Aristocrat (Manual)';
 const _lastFrequency = '9999';
@@ -176,11 +177,31 @@ class _FrequencySuggestionsPatternMapProvider extends PatternMapProvider {
       PatternMap.fromList(['ZINC', 'LOVE']);
 }
 
+class _ProductionPatternSuggestionsGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) {
+    final letters = gameKey.startsWith('ABCC')
+        ? 'OEFF'.split('')
+        : 'OEEF'.split('');
+    return Game(
+      quote: Quote(),
+      gameMode: GameMode.manual,
+      showSuggestions: true,
+      cells: [
+        for (final (index, letter) in letters.indexed)
+          _cell(letter, cipher: 'C$index'),
+        _cell(' ', cipher: ' ', isException: true),
+      ],
+    );
+  }
+}
+
 Future<void> _pumpGame(
   WidgetTester tester,
   ProviderContainer container,
-  Size size,
-) async {
+  Size size, {
+  String gameId = 'Aristocrat',
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   await tester.pumpWidget(
@@ -190,9 +211,10 @@ Future<void> _pumpGame(
         container: container,
         child: MaterialApp(
           theme: AppTheme.theme,
-          home: const GamePageLayout(
+          home: GamePageLayout(
+            key: ValueKey(gameId),
             config: GamePageConfig(
-              gameId: 'Aristocrat',
+              gameId: gameId,
               gameMode: GameMode.manual,
               language: Language.english,
             ),
@@ -266,6 +288,12 @@ Future<void> _withPlatform(
 }
 
 void main() {
+  setUpAll(() {
+    installDatabase(openSeedDatabase());
+  });
+
+  tearDownAll(closeInstalledDatabase);
+
   group('dictionary suggestions', () {
     testWidgets(
       'Windows reorders English suggestions when preference changes',
@@ -273,19 +301,7 @@ void main() {
         _ignoreHeaderListTileMaterialWarning();
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        Hive.init(null);
-        Hive.registerAdapter(SettingPrefsAdapter());
-        final box = await Hive.openBox<SettingPrefs>(
-          'frequency-test-settings',
-          bytes: Uint8List(0),
-        );
-        final previousBox = settingsBox;
-        settingsBox = box;
-        addTearDown(() async {
-          settingsBox = previousBox;
-          await Hive.close();
-        });
-        await box.put('prefs', SettingPrefs(frequencyWordOrder: false));
+        await settingsStore!.save(SettingPrefs(frequencyWordOrder: false));
         await _withPlatform(TargetPlatform.windows, () async {
           final container = ProviderContainer(
             overrides: [
@@ -300,18 +316,232 @@ void main() {
 
           double x(String word) => tester.getTopLeft(find.text(word)).dx;
           expect(x('ZINC'), lessThan(x('LOVE')));
-          await box.put(
-            'prefs',
-            box.get('prefs')!.copyWith(frequencyWordOrder: true),
+          await settingsStore!.save(
+            settingsStore!.prefs.copyWith(frequencyWordOrder: true),
           );
           await tester.pumpAndSettle();
           expect(x('LOVE'), lessThan(x('ZINC')));
-          await box.put(
-            'prefs',
-            box.get('prefs')!.copyWith(frequencyWordOrder: false),
+          await settingsStore!.save(
+            settingsStore!.prefs.copyWith(frequencyWordOrder: false),
           );
           await tester.pumpAndSettle();
           expect(x('ZINC'), lessThan(x('LOVE')));
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
+      },
+    );
+
+    testWidgets(
+      'Windows production English form controls preserve ABCC and expand ABBC',
+      (tester) async {
+        _ignoreHeaderListTileMaterialWarning();
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final originalPrefs = settingsStore!.prefs;
+        addTearDown(() => settingsStore!.save(originalPrefs));
+        await settingsStore!.save(
+          originalPrefs.copyWith(frequencyWordOrder: false),
+        );
+        await _withPlatform(TargetPlatform.windows, () async {
+          final container = ProviderContainer(
+            overrides: [
+              gameProvider.overrideWith(
+                _ProductionPatternSuggestionsGameProvider.new,
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          await _pumpGame(
+            tester,
+            container,
+            const Size(800, 600),
+            gameId: 'ABCC',
+          );
+
+          final dictionary = container.read(patternMapProvider('english'));
+          List<String> candidates(
+            String word,
+            (bool, bool, bool) state, {
+            required bool frequencyOrder,
+          }) => getSuggestedWords(
+            [
+              for (final (index, letter) in word.split('').indexed)
+                _cell(letter, cipher: 'C$index'),
+              _cell(' ', cipher: ' ', isException: true),
+            ],
+            0,
+            dictionary.mapForOrder(frequencyOrder: frequencyOrder),
+            includeWord: (candidate) => dictionary.isVisible(
+              candidate,
+              showRegularPlurals: state.$1,
+              showVerbForms: state.$2,
+              showDescriptiveForms: state.$3,
+            ),
+          );
+
+          final states = [
+            (false, false, false),
+            (true, false, false),
+            (false, true, false),
+            (false, false, true),
+            (true, true, false),
+            (true, false, true),
+            (false, true, true),
+            (true, true, true),
+          ];
+          final abbcCounts = <(bool, bool, bool), int>{
+            (false, false, false): 106,
+            (true, false, false): 121,
+            (false, true, false): 122,
+            (false, false, true): 107,
+            (true, true, false): 128,
+            (true, false, true): 122,
+            (false, true, true): 123,
+            (true, true, true): 129,
+          };
+          var current = (false, false, false);
+
+          Future<void> expectState((bool, bool, bool) state, int count) async {
+            final controls = [
+              ('PLURALS', current.$1, state.$1),
+              ('VERBS', current.$2, state.$2),
+              ('ADJ/ADV', current.$3, state.$3),
+            ];
+            for (final control in controls) {
+              if (control.$2 == control.$3) continue;
+              await tester.tap(
+                find.text('${control.$1}: ${control.$2 ? 'ON' : 'OFF'}'),
+              );
+              await tester.pumpAndSettle();
+            }
+            current = state;
+            for (final control in controls) {
+              expect(
+                find.text('${control.$1}: ${control.$3 ? 'ON' : 'OFF'}'),
+                findsOneWidget,
+              );
+            }
+            expect(
+              find.descendant(
+                of: _suggestionsPanel(isWindows: true),
+                matching: find.text('$count'),
+              ),
+              findsOneWidget,
+            );
+          }
+
+          for (final state in states) {
+            final alphabetical = candidates(
+              'OEFF',
+              state,
+              frequencyOrder: false,
+            );
+            final frequencyOrdered = candidates(
+              'OEFF',
+              state,
+              frequencyOrder: true,
+            );
+            expect(alphabetical, hasLength(108));
+            expect(frequencyOrdered.toSet(), alphabetical.toSet());
+            await expectState(state, 108);
+          }
+          await settingsStore!.save(
+            settingsStore!.prefs.copyWith(frequencyWordOrder: true),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: _suggestionsPanel(isWindows: true),
+              matching: find.text('108'),
+            ),
+            findsOneWidget,
+          );
+
+          await _pumpGame(
+            tester,
+            container,
+            const Size(800, 600),
+            gameId: 'ABBC',
+          );
+          expect(
+            identical(
+              dictionary,
+              container.read(patternMapProvider('english')),
+            ),
+            isTrue,
+          );
+          current = (false, false, false);
+          for (final state in states) {
+            final alphabetical = candidates(
+              'OEEF',
+              state,
+              frequencyOrder: false,
+            );
+            final frequencyOrdered = candidates(
+              'OEEF',
+              state,
+              frequencyOrder: true,
+            );
+            expect(alphabetical, hasLength(abbcCounts[state]!));
+            expect(frequencyOrdered.toSet(), alphabetical.toSet());
+            await expectState(state, abbcCounts[state]!);
+          }
+          expect(
+            candidates('OEEF', (false, false, false), frequencyOrder: true),
+            isNot(contains('BEES')),
+          );
+          expect(
+            candidates('OEEF', (true, false, false), frequencyOrder: true),
+            contains('BEES'),
+          );
+          expect(
+            candidates('OEEF', (false, true, false), frequencyOrder: true),
+            contains('EFFS'),
+          );
+          expect(
+            candidates('OEEF', (false, false, true), frequencyOrder: true),
+            contains('WEER'),
+          );
+
+          await expectState((false, false, false), 106);
+          final game = container.read(gameProvider('ABBC (Manual)').notifier);
+          game.selectCell(0);
+          for (final letter in 'BEES'.split('')) {
+            game.setLetter(letter, false);
+          }
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: _suggestionsPanel(isWindows: true),
+              matching: find.text('0'),
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('BEES'), findsNothing);
+          await tester.tap(find.text('PLURALS: OFF'));
+          await tester.pumpAndSettle();
+          expect(find.text('Reveal word'), findsOneWidget);
+          await tester.tap(find.text('Reveal word'));
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: _suggestionsPanel(isWindows: true),
+              matching: find.text('BEES'),
+            ),
+            findsOneWidget,
+          );
+          await tester.tap(find.text('PLURALS: ON'));
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: _suggestionsPanel(isWindows: true),
+              matching: find.text('0'),
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('BEES'), findsNothing);
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pump(const Duration(milliseconds: 1));

@@ -1,8 +1,22 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/Features/Dictionary/Util/dictionary_search.dart';
 import 'package:scioly_codebusters/library.dart';
 
+import 'database_test_utils.dart';
+
 void main() {
+  late AppDatabase database;
+
+  setUpAll(() {
+    database = openSeedDatabase();
+    installDatabase(database);
+  });
+
+  tearDownAll(closeInstalledDatabase);
+
   final entries = [
     const MapEntry('ABC', ['CAT', 'COT', 'CUT', 'DOG', 'ING']),
     const MapEntry('ABCD', ['CART', 'CANT', 'RING', 'INDEX', 'INDEXES']),
@@ -51,7 +65,9 @@ void main() {
   });
 
   test('wildcards also match Spanish enye', () {
-    final spanish = PatternMap.fromList(spanishWordList).visibleEntries();
+    final spanish = PatternMap.fromList(
+      database.dictionaryWords(Language.spanish),
+    ).visibleEntries();
     expect(
       searchDictionaryEntries(spanish, 'MA?ANA').expand((entry) => entry.value),
       contains('MAÑANA'),
@@ -73,4 +89,48 @@ void main() {
       ['ELECTROENCEPHALOGRAPHIC'],
     );
   });
+
+  testWidgets(
+    'production Dictionary search reveals a descriptive form after its toggle',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1;
+      try {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.theme,
+              home: const Scaffold(
+                body: DictionaryTab(
+                  dictionaryId: 'english',
+                  colors: [Colors.green],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'WEER');
+        await tester.pump(const Duration(milliseconds: 150));
+        final weer = find.descendant(
+          of: find.byType(DictionaryWordWidget),
+          matching: find.text('WEER'),
+        );
+        expect(find.text('0 matching words'), findsOneWidget);
+        expect(weer, findsNothing);
+
+        await tester.tap(find.byType(Switch).at(2));
+        await tester.pumpAndSettle();
+        expect(find.text('1 matching words'), findsOneWidget);
+        expect(weer, findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
 }

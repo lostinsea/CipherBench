@@ -1,8 +1,17 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
+import 'database_test_utils.dart';
+
 void main() {
+  late AppDatabase database;
+
+  setUpAll(() {
+    database = openSeedDatabase();
+  });
+
+  tearDownAll(() => database.close());
+
   test(
     'English form visibility defaults off and preserves independently attested words',
     () {
@@ -59,7 +68,6 @@ void main() {
         ),
         isTrue,
       );
-
       expect(visibleWords(), {'BASE', 'ATTESTED'});
       expect(visibleWords(showRegularPlurals: true), {
         'BASE',
@@ -90,7 +98,7 @@ void main() {
     },
   );
 
-  test('puzzle suggestions can use the same default English visibility', () {
+  test('puzzle suggestions can apply the same English form filter', () {
     final dictionary = PatternMap.fromList(
       ['CAT'],
       regularPlurals: ['CATS'],
@@ -114,49 +122,56 @@ void main() {
     );
   });
 
-  test('Spanish dictionary ignores English form visibility controls', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final dictionary = container.read(patternMapProvider('spanish'));
-    final allWords = dictionary.map.values.expand((words) => words).toSet();
-    final defaultWords = dictionary
-        .visibleEntries()
-        .expand((entry) => entry.value)
-        .toSet();
+  test(
+    'SQLite dictionaries preserve Spanish words without English form filters',
+    () {
+      final words = database.dictionaryWords(Language.spanish);
+      final dictionary = PatternMap.fromList(words);
+      final allWords = dictionary.map.values.expand((words) => words).toSet();
+      final defaultWords = dictionary
+          .visibleEntries()
+          .expand((entry) => entry.value)
+          .toSet();
 
-    expect(defaultWords, allWords);
-    expect(defaultWords, isNotEmpty);
-  });
+      expect(words, hasLength(4971));
+      expect(allWords, containsAll(['MAÑANA', 'SUEÑO', 'SOS']));
+      expect(defaultWords, allWords);
+    },
+  );
 
   test(
-    'frequency order changes suggestions without changing dictionary order',
+    'frequency ordering uses SQLite scores with deterministic fallbacks and ties',
     () {
-      final dictionary = PatternMap.fromList(['ZINC', 'LOVE']);
-      final original = dictionary.map[getPatternKey('LOVE')]!;
+      final scores = database.englishFrequencyScores;
+      expect(scores, isNotEmpty);
 
-      expect(
-        englishFrequencyScores['LOVE'],
-        greaterThan(englishFrequencyScores['ZINC']!),
+      final dictionary = PatternMap.fromList(
+        ['ZINC', 'LOVE', 'HOPE', 'ABLE'],
+        frequencyScores: const {'ZINC': 1, 'LOVE': 5, 'HOPE': 5},
       );
-      expect(original, ['ZINC', 'LOVE']);
-      expect(dictionary.mapForOrder()[getPatternKey('LOVE')], original);
-      expect(
-        dictionary.mapForOrder(frequencyOrder: true)[getPatternKey('LOVE')],
-        ['LOVE', 'ZINC'],
-      );
-      expect(dictionary.visibleEntries().single.value, ['ZINC', 'LOVE']);
-      expect(original, ['ZINC', 'LOVE']);
+      final pattern = getPatternKey('LOVE');
 
-      dictionary.addWord('HOPE');
-      final ranked = dictionary.mapForOrder(
-        frequencyOrder: true,
-      )[getPatternKey('LOVE')]!;
-      expect(ranked, contains('HOPE'));
-      expect(ranked.first, isNot('ZINC'));
-      expect(dictionary.mapForOrder()[getPatternKey('LOVE')], [
+      expect(dictionary.map[pattern], ['ZINC', 'LOVE', 'HOPE', 'ABLE']);
+      expect(dictionary.mapForOrder()[pattern], [
         'ZINC',
         'LOVE',
         'HOPE',
+        'ABLE',
+      ]);
+      expect(dictionary.mapForOrder(frequencyOrder: true)[pattern], [
+        'HOPE',
+        'LOVE',
+        'ZINC',
+        'ABLE',
+      ]);
+
+      dictionary.addWord('DOPE');
+      expect(dictionary.mapForOrder(frequencyOrder: true)[pattern], [
+        'HOPE',
+        'LOVE',
+        'ZINC',
+        'ABLE',
+        'DOPE',
       ]);
     },
   );

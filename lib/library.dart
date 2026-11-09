@@ -53,6 +53,7 @@ export 'Features/Keyboard/Web/Widgets/command_widget.dart';
 export 'Features/Keyboard/Web/keyboard_shortcuts_widget.dart';
 
 export 'Features/Quotes/Models/solved_quote.dart';
+export 'Features/Quotes/Util/app_database.dart';
 export 'Features/Quotes/Util/quote_library.dart';
 export 'Features/Quotes/Models/quote.dart';
 export 'Features/Quotes/Providers/solved_quotes_provider.dart';
@@ -71,16 +72,13 @@ export 'Features/Dictionary/Widgets/dictionary_word_widget.dart';
 export 'Features/Dictionary/dictionary_page.dart';
 
 export 'Features/Settings/audio_controller.dart';
+export 'Features/Settings/Models/settings_store.dart';
 export 'Features/Settings/settings.dart';
 
 export 'Shared/widgets/home_button_widget.dart';
 export 'Shared/widgets/heading_widget.dart';
 export 'Shared/widgets/styled_button_widget.dart';
-export 'Shared/words/english_word_list.dart';
-export 'Shared/words/english_plurals.dart';
-export 'Shared/words/english_forms.dart';
-export 'Shared/words/english_frequency_scores.dart';
-export 'Shared/words/spanish_word_list.dart';
+export 'Shared/words/spanish_normalization.dart';
 
 export 'dimensions.dart';
 export 'theme.dart';

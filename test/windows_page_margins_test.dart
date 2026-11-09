@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
+
+import 'database_test_utils.dart';
 
 void _expectPageMargins(WidgetTester tester, Finder content, Size size) {
   final bounds = tester.getRect(content);
@@ -15,20 +14,12 @@ void _expectPageMargins(WidgetTester tester, Finder content, Size size) {
 }
 
 void main() {
-  late Directory directory;
-  late Box<SolvedQuote> quotes;
-
   setUpAll(() async {
-    directory = await Directory.systemTemp.createTemp(
-      'cipherbench-quote-margins-',
-    );
-    Hive.init(directory.path);
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(SolvedQuoteAdapter());
-    }
-    quotes = await Hive.openBox<SolvedQuote>('quotesBox');
-    await quotes.add(
+    final database = openSeedDatabase();
+    installDatabase(database);
+    database.addCompletion(
       SolvedQuote(
+        quoteId: 1,
         text: 'Example quote',
         author: 'Test',
         rating: 3,
@@ -41,9 +32,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    await quotes.close();
-    await Hive.close();
-    await directory.delete(recursive: true);
+    closeInstalledDatabase();
   });
 
   testWidgets('Windows instructions keep their content clear of both edges', (

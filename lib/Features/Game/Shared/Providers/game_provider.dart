@@ -153,7 +153,12 @@ class GameProvider extends FamilyNotifier<Game, String> {
       stars = 3;
     }
     state = state.copyWith(rating: stars);
+    final quoteId = state.quote.id;
+    if (quoteId == null) {
+      throw StateError('Completed puzzle has no quote ID.');
+    }
     final newQuote = SolvedQuote(
+      quoteId: quoteId,
       text: state.quote.ogQuote,
       author: state.quote.author,
       rating: stars,

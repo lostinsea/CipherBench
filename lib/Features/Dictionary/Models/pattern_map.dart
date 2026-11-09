@@ -11,15 +11,17 @@ class PatternMap {
   final Set<String> _defaultWords = {};
   final Map<String, Set<WordForm>> _forms = {};
   Map<String, List<String>>? _frequencyMap;
+  final Map<String, int>? _scores;
 
-  PatternMap();
+  PatternMap([this._scores]);
   PatternMap.fromList(
     List<String> list, {
     Iterable<String> regularPlurals = const [],
     Iterable<String> irregularPlurals = const [],
     Iterable<String> verbForms = const [],
     Iterable<String> descriptiveForms = const [],
-  }) {
+    Map<String, int>? frequencyScores,
+  }) : _scores = frequencyScores {
     for (var word in list) {
       addWord(word);
     }
@@ -60,7 +62,7 @@ class PatternMap {
   }
 
   PatternMap copy() {
-    final copy = PatternMap();
+    final copy = PatternMap(_scores);
     _map.forEach((key, words) {
       copy._map[key] = List<String>.of(words);
     });
@@ -122,15 +124,22 @@ class PatternMap {
 
   Map<String, List<String>> mapForOrder({bool frequencyOrder = false}) {
     if (!frequencyOrder) return _map;
-    return _frequencyMap ??= _FrequencyOrderedMap(_map);
+    final scores = _scores ?? appDatabase?.englishFrequencyScores;
+    if (scores == null) {
+      throw StateError(
+        'Frequency scores are unavailable before database initialization.',
+      );
+    }
+    return _frequencyMap ??= _FrequencyOrderedMap(_map, scores);
   }
 }
 
 class _FrequencyOrderedMap extends MapBase<String, List<String>> {
   final Map<String, List<String>> _source;
+  final Map<String, int> _scores;
   final Map<String, List<String>> _sorted = {};
 
-  _FrequencyOrderedMap(this._source);
+  _FrequencyOrderedMap(this._source, this._scores);
 
   @override
   List<String>? operator [](Object? key) {
@@ -140,9 +149,7 @@ class _FrequencyOrderedMap extends MapBase<String, List<String>> {
       key,
       () => List<String>.of(words)
         ..sort((a, b) {
-          final byFrequency = (englishFrequencyScores[b] ?? 0).compareTo(
-            englishFrequencyScores[a] ?? 0,
-          );
+          final byFrequency = (_scores[b] ?? 0).compareTo(_scores[a] ?? 0);
           return byFrequency != 0 ? byFrequency : a.compareTo(b);
         }),
     );

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
 
 //import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +48,8 @@ String keyboardClickAsset = "assets/music/sound_effects/keyboard_click.mp3";
 Color gameCellColor = AppTheme.logoGreen;
 
 String bgMusicFile = "assets/music/bg.mp3";
-Box? settingsBox;
+AppDatabase? appDatabase;
+SettingsStore? settingsStore;
 // user preference on whether the background should have teh matrix or not
 bool bgMatrixOn = true;
 

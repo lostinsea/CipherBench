@@ -8,27 +8,30 @@ final statsProvider = Provider.family<QuoteStats, String>((ref, gameModeKey) {
       .toList();
 
   final now = DateTime.now();
-  final startOfThisWeek = now.subtract(Duration(days: now.weekday - 1));
-  final startOfLastWeek = startOfThisWeek.subtract(const Duration(days: 7));
-
-  bool isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  final startOfThisWeek = DateTime(
+    now.year,
+    now.month,
+    now.day - (now.weekday - DateTime.monday),
+  );
+  final startOfLastWeek = DateTime(
+    startOfThisWeek.year,
+    startOfThisWeek.month,
+    startOfThisWeek.day - 7,
+  );
+  final startOfNextWeek = DateTime(
+    startOfThisWeek.year,
+    startOfThisWeek.month,
+    startOfThisWeek.day + 7,
+  );
+  bool inWeek(DateTime date, DateTime start, DateTime end) =>
+      !date.isBefore(start) && date.isBefore(end);
 
   List<SolvedQuote> thisWeek = quotes
-      .where(
-        (q) =>
-            q.date.isAfter(startOfThisWeek) ||
-            isSameDay(q.date, startOfThisWeek),
-      )
+      .where((q) => inWeek(q.date, startOfThisWeek, startOfNextWeek))
       .toList();
 
   List<SolvedQuote> lastWeek = quotes
-      .where(
-        (q) =>
-            (q.date.isAfter(startOfLastWeek) ||
-                isSameDay(q.date, startOfLastWeek)) &&
-            q.date.isBefore(startOfThisWeek),
-      )
+      .where((q) => inWeek(q.date, startOfLastWeek, startOfThisWeek))
       .toList();
 
   double avg(List<SolvedQuote> qs) => qs.isEmpty

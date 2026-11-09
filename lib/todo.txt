@@ -61,7 +61,6 @@ v.2.0.1 - IOS + android
 2. Link YouTube channel
 3. Find better dictionary database
 4. Animation for perfect solves
-5. Test out Hive capabilties
 6. Spanish translations **dictionary and quotes
 
 v.2.1.0

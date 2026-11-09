@@ -65,8 +65,8 @@ class _FinishedQuoteWidgetState extends ConsumerState<FinishedQuoteWidget>
 
     final actions = [
       StyledButtonWidget(
-        value: "Play Again",
-        fittedLabel: isWindows ? "Play Again" : null,
+        value: "New Puzzle",
+        fittedLabel: isWindows ? "New Puzzle" : null,
         bgColor: Colors.redAccent,
         onPressed: () async {
           await buttonClickSound();

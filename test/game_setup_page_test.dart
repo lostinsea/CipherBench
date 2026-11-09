@@ -1,11 +1,11 @@
 import 'dart:ui' show Tristate;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
+
+import 'database_test_utils.dart';
 
 const _gameId = 'Aristocrat';
 const _assistedKey = '$_gameId (Assisted)';
@@ -41,6 +41,20 @@ class _ExhaustedGameProvider extends GameProvider {
     String gameId,
   ) async {
     throw NoUnseenQuotesException();
+  }
+}
+
+class _NoOriginalQuotesGameProvider extends GameProvider {
+  @override
+  Game build(String gameKey) => Game(quote: Quote());
+
+  @override
+  Future<void> buildCryptogram(
+    GameMode gameMode,
+    Language language,
+    String gameId,
+  ) async {
+    throw NoEligibleQuotesException();
   }
 }
 
@@ -140,18 +154,11 @@ void _ignoreGamePageListTileMaterialWarning() {
 }
 
 void main() {
-  late Box<SolvedQuote> quotes;
-
-  setUpAll(() async {
-    Hive.init(null);
-    Hive.registerAdapter(SolvedQuoteAdapter());
-    quotes = await Hive.openBox<SolvedQuote>('quotesBox', bytes: Uint8List(0));
+  setUpAll(() {
+    installDatabase(openSeedDatabase());
   });
 
-  tearDownAll(() async {
-    await quotes.close();
-    await Hive.close();
-  });
+  tearDownAll(closeInstalledDatabase);
 
   testWidgets(
     'keeps the game setup compact, centered, and overflow-free at Windows sizes',
@@ -417,7 +424,35 @@ void main() {
 
       expect(find.byType(SnackBar), findsOneWidget);
       expect(
-        find.textContaining('No unseen quotes remain for this language.'),
+        find.text(
+          'No unseen quotes remain in the selected collection for this language. Turn off "Skip completed quotes" in Settings to replay them.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(GamePage), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'explains how to enable imported quotes when no originals are eligible',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          gameProvider.overrideWith(_NoOriginalQuotesGameProvider.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _pumpGameSetup(tester, container);
+      await tester.pump();
+
+      await tester.tap(_outlinedButton('New Puzzle'));
+      await tester.pump();
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        find.text(
+          'No original quotes are available for this language. Turn on "Use extended quote collection" in Settings to include imported quotes.',
+        ),
         findsOneWidget,
       );
       expect(find.byType(GamePage), findsNothing);

@@ -138,12 +138,22 @@ class GamePageSetup extends ConsumerWidget {
                               language,
                               gameId,
                             );
+                          } on NoEligibleQuotesException {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No original quotes are available for this language. Turn on "Use extended quote collection" in Settings to include imported quotes.',
+                                ),
+                              ),
+                            );
+                            return;
                           } on NoUnseenQuotesException {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'No unseen quotes remain for this language. Turn off "Skip completed quotes" in Settings to replay them.',
+                                  'No unseen quotes remain in the selected collection for this language. Turn off "Skip completed quotes" in Settings to replay them.',
                                 ),
                               ),
                             );

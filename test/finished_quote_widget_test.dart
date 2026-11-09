@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -7,8 +6,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:scioly_codebusters/library.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+import 'database_test_utils.dart';
 
 const _gameKey = 'finished quote test';
 const _edgeClearance = 38.0;
@@ -17,13 +18,13 @@ const _scaledPreviewOutputEnvironmentVariable =
     'CIPHERBENCH_FINISHED_QUOTE_SCALED_PREVIEW';
 const _previewBoundaryKey = ValueKey('finished-quote-preview');
 const _favoritedActionLabels = <String>[
-  'Play Again',
+  'New Puzzle',
   'View completed quote',
   'Unfavorite Quote',
   'Home',
 ];
 const _unfavoritedActionLabels = <String>[
-  'Play Again',
+  'New Puzzle',
   'View completed quote',
   'Add to favorites',
   'Home',
@@ -40,13 +41,18 @@ class _FixedTimerNotifier extends TimerNotifier {
 }
 
 class _BundledQuote {
-  const _BundledQuote({required this.text, required this.author});
+  const _BundledQuote({
+    required this.id,
+    required this.text,
+    required this.author,
+  });
 
+  final int id;
   final String text;
   final String author;
 }
 
-late Box<SolvedQuote> _quotesBox;
+late AppDatabase _database;
 
 Finder _action(String label) => find.byWidgetPredicate(
   (widget) => widget is StyledButtonWidget && widget.value == label,
@@ -55,20 +61,29 @@ Finder _action(String label) => find.byWidgetPredicate(
 List<String> _actionLabels(bool favorited) =>
     favorited ? _favoritedActionLabels : _unfavoritedActionLabels;
 
-_BundledQuote _longestBundledQuote(String assetName) {
-  final quotes =
-      jsonDecode(File('assets\\quotes\\$assetName').readAsStringSync())
-          as Map<String, dynamic>;
-  final longest = quotes.values.cast<Map<String, dynamic>>().reduce(
-    (longest, quote) =>
-        (quote['quote'] as String).length > (longest['quote'] as String).length
-        ? quote
-        : longest,
-  );
-  return _BundledQuote(
-    text: longest['quote'] as String,
-    author: longest['author'] as String,
-  );
+_BundledQuote _longestBundledQuote(Language language) {
+  final seed = sqlite3.open(seedDatabasePath, mode: OpenMode.readOnly);
+  try {
+    final quote = seed
+        .select(
+          '''
+      SELECT id, text, author
+      FROM quotes
+      WHERE language = ?
+      ORDER BY LENGTH(text) DESC, id
+      LIMIT 1
+      ''',
+          [language.name],
+        )
+        .single;
+    return _BundledQuote(
+      id: quote['id'] as int,
+      text: quote['text'] as String,
+      author: quote['author'] as String,
+    );
+  } finally {
+    seed.close();
+  }
 }
 
 Future<void> _pumpFinishedQuote(
@@ -78,9 +93,12 @@ Future<void> _pumpFinishedQuote(
   bool favorited = true,
   double textScale = 1,
 }) async {
-  await _quotesBox.clear();
-  await _quotesBox.add(
+  for (final completion in _database.completedQuotes()) {
+    _database.setFavorite(completion.completionId!, false);
+  }
+  _database.addCompletion(
     SolvedQuote(
+      quoteId: quote.id,
       text: quote.text,
       author: quote.author,
       rating: 3,
@@ -108,6 +126,7 @@ Future<void> _pumpFinishedQuote(
         container: container,
         child: MaterialApp(
           theme: AppTheme.theme,
+          debugShowCheckedModeBanner: false,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
               context,
@@ -285,18 +304,12 @@ Future<void> _runWindowsTest(
 void main() {
   setUpAll(() async {
     await _loadPreviewFonts();
-    Hive.init(null);
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(SolvedQuoteAdapter());
-    }
-    _quotesBox = await Hive.openBox<SolvedQuote>(
-      'quotesBox',
-      bytes: base64Decode(''),
-    );
+    _database = openSeedDatabase();
+    installDatabase(_database);
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    closeInstalledDatabase();
   });
 
   testWidgets(
@@ -304,6 +317,7 @@ void main() {
     (tester) async {
       await _runWindowsTest(tester, () async {
         final quote = _BundledQuote(
+          id: 1,
           text: 'A concise completed puzzle quote.',
           author: 'CipherBench',
         );
@@ -332,11 +346,8 @@ void main() {
     'Windows keeps the longest bundled quotes and fixed actions accessible',
     (tester) async {
       await _runWindowsTest(tester, () async {
-        for (final assetName in const [
-          'englishQuotes.json',
-          'spanishQuotes.json',
-        ]) {
-          final quote = _longestBundledQuote(assetName);
+        for (final language in Language.values) {
+          final quote = _longestBundledQuote(language);
           const size = Size(800, 600);
           await _pumpFinishedQuote(
             tester,
@@ -377,6 +388,7 @@ void main() {
               tester,
               size: size,
               quote: const _BundledQuote(
+                id: 1,
                 text: 'The interpretation of dreams is a great art.',
                 author: 'Paracelsus',
               ),
@@ -403,7 +415,7 @@ void main() {
       await _pumpFinishedQuote(
         tester,
         size: const Size(800, 600),
-        quote: _longestBundledQuote('englishQuotes.json'),
+        quote: _longestBundledQuote(Language.english),
         favorited: false,
       );
 
@@ -420,8 +432,9 @@ void main() {
     tester,
   ) async {
     await _runWindowsTest(tester, () async {
-      final longestEnglishQuote = _longestBundledQuote('englishQuotes.json');
+      final longestEnglishQuote = _longestBundledQuote(Language.english);
       final scrollingQuote = _BundledQuote(
+        id: longestEnglishQuote.id,
         text: List.filled(8, longestEnglishQuote.text).join('\n'),
         author: longestEnglishQuote.author,
       );

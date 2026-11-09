@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scioly_codebusters/library.dart';
-import 'package:hive/hive.dart';
 
 // List of all quotes
 final quoteListProvider =
@@ -9,27 +8,34 @@ final quoteListProvider =
     });
 
 class QuoteListNotifier extends StateNotifier<List<SolvedQuote>> {
-  late final Box<SolvedQuote> _box;
+  QuoteListNotifier() : super(_loadHistory());
 
-  QuoteListNotifier() : super([]) {
-    _init(); // async initialization done separately
+  static List<SolvedQuote> _loadHistory() {
+    final database = appDatabase;
+    if (database == null) {
+      throw StateError('Quote database is not initialized.');
+    }
+    return database.completedQuotes();
   }
 
-  Future<void> _init() async {
-    _box = Hive.box<SolvedQuote>('quotesBox');
-    state = _box.values.toList();
-  }
-
-  Future<void> addQuote(SolvedQuote quote) async {
-    await _box.add(quote);
-    state = _box.values.toList();
+  void addQuote(SolvedQuote quote) {
+    final database = appDatabase;
+    if (database == null) {
+      throw StateError('Quote database is not initialized.');
+    }
+    state = [...state, database.addCompletion(quote)];
   }
 
   Future<void> toggleFavorite(int index) async {
     final quote = state[index];
+    final completionId = quote.completionId;
+    final database = appDatabase;
+    if (database == null || completionId == null) {
+      throw StateError('Completed quote is not stored.');
+    }
+    database.setFavorite(completionId, !quote.isFavorite);
     quote.isFavorite = !quote.isFavorite;
-    await quote.save();
-    state = [...state]; // notify listeners
+    state = [...state];
   }
 
   Future<void> toggleFavoriteMostRecent() async {

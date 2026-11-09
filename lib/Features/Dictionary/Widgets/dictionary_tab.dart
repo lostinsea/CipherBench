@@ -287,7 +287,6 @@ class _DictionaryTabState extends ConsumerState<DictionaryTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // hive_generator's parser cannot read null-aware collection elements yet.
               // ignore: use_null_aware_elements
               if (formToggles != null) formToggles,
               if (formToggles != null) const SizedBox(height: 4),

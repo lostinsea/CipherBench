@@ -1,15 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
-import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/library.dart';
 
-late Directory _hiveDirectory;
-late Box<SettingPrefs> _testSettingsBox;
+import 'database_test_utils.dart';
 
 Future<void> _pumpHomePage(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;
@@ -55,23 +50,13 @@ const _homeButtonLabels = [
 
 void main() {
   setUpAll(() async {
-    _hiveDirectory = await Directory.systemTemp.createTemp(
-      'codebusters-home-logo-',
-    );
-    Hive.init(_hiveDirectory.path);
-    if (!Hive.isAdapterRegistered(3)) {
-      Hive.registerAdapter(SettingPrefsAdapter());
-    }
-    _testSettingsBox = await Hive.openBox<SettingPrefs>('settings');
-    settingsBox = _testSettingsBox;
-    await _testSettingsBox.put('prefs', SettingPrefs(bgMatrixOn: false));
+    final database = openSeedDatabase();
+    installDatabase(database);
+    await settingsStore!.save(settingsStore!.prefs.copyWith(bgMatrixOn: false));
   });
 
   tearDownAll(() async {
-    settingsBox = null;
-    await _testSettingsBox.close();
-    await Hive.close();
-    await _hiveDirectory.delete(recursive: true);
+    closeInstalledDatabase();
   });
 
   group('HomePage logo layout', () {

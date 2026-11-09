@@ -18,7 +18,8 @@ CipherBench is a Windows-focused fork of an earlier cryptogram project. See [cre
   - Use a physical keyboard (no on-screen game keyboard), shortcut help, and mouse-accessible Undo and Reset. Reset asks for confirmation.
   - Navigate puzzle cells with Left/Right and jump to the nearest cell on another line with Up/Down; the selected outline stays visible while holding an arrow key.
   - Follow the centered elapsed-time display through 9999s.
-  - New puzzles skip quotes in your completed history by default. Turn off **Skip completed quotes** in Settings to allow repeats; if you finish an entire language's pool, the app asks you to turn it off before replaying.
+  - New puzzles skip quotes in your completed history by default. Turn off **Skip completed quotes** in Settings to allow repeats; if you finish the selected collection's unseen quotes, the app asks you to turn it off before replaying.
+  - **Use extended quote collection** defaults on; turn it off to use only the original quotes when starting a new puzzle. Existing progress and solved-quote history remain intact.
   - A second launch brings the running window back instead of opening another copy.
 
 - 🔍 **Word Pattern Dictionary**  
@@ -55,6 +56,12 @@ The window opens at a 1100 × 720 client area, adjusted to fit the monitor's wor
 
 To check single-instance behavior and shutdown, review and run `powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File test\windows_shutdown_test.ps1`. This execution policy applies only to that PowerShell process and cannot override an enforced organization policy.
 
+### Local data
+
+The app bundles its read-only quote and dictionary collections in `assets\quotes\cipherbench.sqlite3`. On first launch it copies that database to `Documents\CipherBench\cipherbench.sqlite3` (using the Windows Documents known folder, including OneDrive redirection). Completed puzzles, favorites, and settings are stored there; later launches reuse the writable copy without overwriting progress. Existing Hive files in Documents are left untouched, but are not imported.
+
+The SQLite collection includes the original and extended English and Spanish quotes, ordered English and Spanish dictionary entries (including plurals, verb forms, and descriptive forms), and English frequency scores. The Home animation loads the English base words on first use; each full dictionary and English frequency scores are loaded and cached only when needed. There is no quote-import command in this repository.
+
 ### Local single-file installer
 
 After building the Windows Release folder, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) on the build PC and run:
@@ -73,7 +80,7 @@ Built with:
 
 - **Flutter**
 - **Riverpod** – for state management
-- **Hive** – for local storage and persistence
+- **SQLite** – for local quotes, dictionary data, and persistent progress/settings
 
 ---
 

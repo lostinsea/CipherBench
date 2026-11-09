@@ -1,11 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
-import 'package:scioly_codebusters/Features/Settings/Models/setting_prefs.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class DictionaryPopoverWidget extends ConsumerStatefulWidget {
@@ -35,19 +31,19 @@ class _DictionaryPopoverWidgetState
   bool _showVerbForms = false;
   bool _showDescriptiveForms = false;
   String? _revealedSingleton;
-  StreamSubscription<BoxEvent>? _settingsSubscription;
+  void _settingsChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    _settingsSubscription = settingsBox?.watch(key: 'prefs').listen((_) {
-      if (mounted) setState(() {});
-    });
+    settingsStore?.addListener(_settingsChanged);
   }
 
   @override
   void dispose() {
-    _settingsSubscription?.cancel();
+    settingsStore?.removeListener(_settingsChanged);
     _wordsController.dispose();
     super.dispose();
   }
@@ -86,8 +82,7 @@ class _DictionaryPopoverWidgetState
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final frequencyOrder =
         widget.dictionaryId == 'english' &&
-        ((settingsBox?.get('prefs') as SettingPrefs?)?.frequencyWordOrder ??
-            true);
+        (settingsStore?.prefs.frequencyWordOrder ?? true);
     final compactControls = MediaQuery.sizeOf(context).width < 1000;
     final words = getSuggestedWords(
       cells,

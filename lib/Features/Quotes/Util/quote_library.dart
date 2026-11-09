@@ -1,18 +1,7 @@
-import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/services.dart';
 import 'package:scioly_codebusters/library.dart';
+export 'quote_types.dart';
 
-enum Language { english, spanish }
-
-class NoUnseenQuotesException implements Exception {
-  const NoUnseenQuotesException();
-
-  @override
-  String toString() => 'No unseen quotes remain for this language.';
-}
-
-//class QuoteLibrary {
 List<String> getAlphabet(Language language) {
   if (language == Language.spanish) {
     return 'abcdefghijklmnopqrstuvwxyzñ'.toUpperCase().split('');
@@ -75,41 +64,24 @@ Map<String, int> getFrequencies(String text) {
 
 Future<Quote> getNewQuote(
   Language language, {
-  Set<String> completedQuoteTexts = const {},
+  bool skipCompletedQuotes = true,
+  bool useExtendedQuoteCollection = true,
 }) async {
-  Map<dynamic, dynamic>? randQuote;
-  String tempOgQuote;
-  if (language == Language.spanish) {
-    randQuote = await getQuote(
-      "assets/quotes/spanishQuotes.json",
-      completedQuoteTexts: completedQuoteTexts,
-    );
-    tempOgQuote =
-        "Hola como estas? Espero que estes bien. Este es un ejemplo de cita en español para probar el sistema. Necesito mas palabras para llenar espacio, asi que eso es lo que estoy haciendo. Parece que necesito aun mas palabras. ¿Es esto suficiente? Supongo que solo hay una manera de averiguarlo...";
-  } else {
-    randQuote = await getQuote(
-      "assets/quotes/englishQuotes.json",
-      completedQuoteTexts: completedQuoteTexts,
-    );
-    tempOgQuote =
-        "hello, world! What a wonderful time to be alive. Don't you think so? I need some more words to fill space so that is what this is. Looks like I need even more words. Is this enough? I guess there's only one way to find out...";
-  }
-  // don't delete these comments
-  //puzzle one: that, people, without
-  tempOgQuote = randQuote["quote"] ?? tempOgQuote;
-  // tempOgQuote =
-  //     "In photography, everything is so ordinary; it takes a lot of looking before you learn to see the extraordinary.";
-  // tempOgQuote = "Sun spreads through the treetops like an epidemic.";
-  // tempOgQuote = "Love goes out the door when money comes innuendo.";
-  String tempAuthor = randQuote["author"] ?? "Please Try Again";
-  // String tempAuthor = "David Bailey";
-  // String tempAuthor = "Dave Bonta";
-  // String tempAuthor = "Groucho Marx";
+  final database = appDatabase;
+  if (database == null) throw StateError('Quote database is not initialized.');
+  final selected = database.randomQuote(
+    language,
+    skipCompletedQuotes: skipCompletedQuotes,
+    useExtendedQuoteCollection: useExtendedQuoteCollection,
+  );
+  final tempOgQuote = selected.text;
+  final tempAuthor = selected.author;
   String tempPlainText = removeAccentsButKeepEnye(tempOgQuote.toUpperCase());
   Map<String, String> tempKey = generateKey(tempPlainText, language);
   String tempCipherText = generateCipherText(tempPlainText, tempKey);
   Map<String, int> tempFrequencies = getFrequencies(tempPlainText);
   return Quote(
+    id: selected.id,
     ogQuote: tempOgQuote,
     author: tempAuthor,
     plainText: tempPlainText,
@@ -117,37 +89,4 @@ Future<Quote> getNewQuote(
     cipherText: tempCipherText,
     frequencies: tempFrequencies,
   );
-}
-
-Future<Map> loadQuotes(String file) async {
-  String jsonQuotes = await rootBundle.loadString(file);
-  Map decoded = jsonDecode(jsonQuotes);
-  return decoded;
-}
-
-Map selectQuote(
-  Map allQuotes, {
-  Set<String> completedQuoteTexts = const {},
-  Random? random,
-}) {
-  if (allQuotes.isEmpty) throw StateError('Quote library is empty.');
-  final rand = random ?? Random();
-  if (completedQuoteTexts.isEmpty) {
-    return allQuotes[rand.nextInt(allQuotes.length).toString()] as Map;
-  }
-
-  final available = [
-    for (final quote in allQuotes.values.cast<Map>())
-      if (!completedQuoteTexts.contains(quote['quote'])) quote,
-  ];
-  if (available.isEmpty) throw const NoUnseenQuotesException();
-  return available[rand.nextInt(available.length)];
-}
-
-Future<Map> getQuote(
-  String file, {
-  Set<String> completedQuoteTexts = const {},
-}) async {
-  final allQuotes = await loadQuotes(file);
-  return selectQuote(allQuotes, completedQuoteTexts: completedQuoteTexts);
 }

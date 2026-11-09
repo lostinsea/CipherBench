@@ -16,7 +16,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     audioCont = widget.audioCont;
     audioCont?.playBgSound();
-    bgMatrixOn = settingsBox?.get('prefs').bgMatrixOn;
+    bgMatrixOn = settingsStore?.prefs.bgMatrixOn ?? true;
   }
 
   @override

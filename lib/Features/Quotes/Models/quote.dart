@@ -1,4 +1,5 @@
 class Quote {
+  final int? id;
   final String ogQuote;
   final String author;
   final String cipherText; //should be uppercase
@@ -7,6 +8,7 @@ class Quote {
   final Map<String, String> key; //plainText -> cipherText
 
   Quote({
+    this.id,
     this.ogQuote = "",
     this.author = "",
     this.cipherText = "",

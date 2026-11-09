@@ -1,22 +1,15 @@
-import 'package:hive/hive.dart';
-part 'setting_prefs.g.dart'; // Needed for generated code
-
-@HiveType(typeId: 3)
-class SettingPrefs extends HiveObject {
-  @HiveField(0)
+class SettingPrefs {
   bool isBgMusicOn;
 
-  @HiveField(1)
   double bgVolume;
 
-  @HiveField(2)
   bool bgMatrixOn;
 
-  @HiveField(3, defaultValue: true)
   bool skipCompletedQuotes;
 
-  @HiveField(4, defaultValue: true)
   bool frequencyWordOrder;
+
+  bool useExtendedQuoteCollection;
 
   SettingPrefs({
     this.isBgMusicOn = true,
@@ -24,6 +17,7 @@ class SettingPrefs extends HiveObject {
     this.bgMatrixOn = true,
     this.skipCompletedQuotes = true,
     this.frequencyWordOrder = true,
+    this.useExtendedQuoteCollection = true,
   });
 
   SettingPrefs copyWith({
@@ -32,6 +26,7 @@ class SettingPrefs extends HiveObject {
     bool? bgMatrixOn,
     bool? skipCompletedQuotes,
     bool? frequencyWordOrder,
+    bool? useExtendedQuoteCollection,
   }) {
     return SettingPrefs(
       isBgMusicOn: isBgMusicOn ?? this.isBgMusicOn,
@@ -39,6 +34,8 @@ class SettingPrefs extends HiveObject {
       bgMatrixOn: bgMatrixOn ?? this.bgMatrixOn,
       skipCompletedQuotes: skipCompletedQuotes ?? this.skipCompletedQuotes,
       frequencyWordOrder: frequencyWordOrder ?? this.frequencyWordOrder,
+      useExtendedQuoteCollection:
+          useExtendedQuoteCollection ?? this.useExtendedQuoteCollection,
     );
   }
 }

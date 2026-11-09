@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:scioly_codebusters/library.dart';
 
 class ConditionalBg extends StatefulWidget {
@@ -42,9 +41,9 @@ class _ConditionalBgState extends State<ConditionalBg> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: settingsBox!.listenable(keys: ['prefs']),
-      builder: (context, box, _) {
-        if (box.get('prefs').bgMatrixOn && _show) {
+      valueListenable: settingsStore!,
+      builder: (context, prefs, _) {
+        if (prefs.bgMatrixOn && _show) {
           return MatrixBackgroundWidget();
         }
         return SizedBox.shrink();

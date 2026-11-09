@@ -7,6 +7,8 @@ import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scioly_codebusters/library.dart';
 
+import 'database_test_utils.dart';
+
 const _previewKey = ValueKey('dictionary-preview');
 
 Future<void> _savePreview(WidgetTester tester, String variable) async {
@@ -142,6 +144,12 @@ Future<void> _checkStableDictionaryRange(
 }
 
 void main() {
+  setUpAll(() {
+    installDatabase(openSeedDatabase());
+  });
+
+  tearDownAll(closeInstalledDatabase);
+
   testWidgets('large English groups build only visible rows off Windows', (
     tester,
   ) async {

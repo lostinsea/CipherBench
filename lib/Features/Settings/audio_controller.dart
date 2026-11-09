@@ -16,8 +16,8 @@ class AudioController {
   Future<void> initialize() async {
     _soloud = SoLoud.instance;
     await _soloud!.init();
-    bgPlaying = settingsBox?.get('prefs').isBgMusicOn;
-    initVol = settingsBox?.get('prefs').bgVolume;
+    bgPlaying = settingsStore?.prefs.isBgMusicOn ?? true;
+    initVol = settingsStore?.prefs.bgVolume ?? 1;
   }
 
   void dispose() {
@@ -51,10 +51,9 @@ class AudioController {
   }
 
   Future<void> updateSettingBox() async {
-    await settingsBox?.put(
-      "prefs",
-      settingsBox?.get('prefs').copyWith(isBgMusicOn: bgPlaying),
-    );
+    final store = settingsStore;
+    if (store == null) throw StateError('Settings have not been initialized.');
+    await store.save(store.prefs.copyWith(isBgMusicOn: bgPlaying));
   }
 
   void setBgVolume(double vol) {

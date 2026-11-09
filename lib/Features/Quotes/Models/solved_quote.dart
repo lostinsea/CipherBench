@@ -1,30 +1,17 @@
-import 'package:hive/hive.dart';
-part 'solved_quote.g.dart'; // Needed for generated code
-
-@HiveType(typeId: 2)
-class SolvedQuote extends HiveObject {
-  @HiveField(0)
-  String text;
-
-  @HiveField(1)
-  String author;
-
-  @HiveField(2)
-  int rating;
-
-  @HiveField(3)
-  double solveTime;
-
-  @HiveField(4)
-  String gameMode;
-
-  @HiveField(5)
+class SolvedQuote {
+  final int? completionId;
+  final int quoteId;
+  final String text;
+  final String author;
+  final int rating;
+  final double solveTime;
+  final String gameMode;
   bool isFavorite;
-
-  @HiveField(6)
-  DateTime date;
+  final DateTime date;
 
   SolvedQuote({
+    this.completionId,
+    required this.quoteId,
     required this.text,
     required this.author,
     required this.rating,

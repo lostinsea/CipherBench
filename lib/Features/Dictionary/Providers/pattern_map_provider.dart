@@ -55,9 +55,16 @@ bool isIndexedEnglishWord(String word) {
       (upper.length < 3 || upper == 'MIX' || !_romanNumeral.hasMatch(upper));
 }
 
-final englishDisplayedBaseWords = englishWordList
-    .where((word) => word != 'AIDS' && isIndexedEnglishWord(word))
-    .toList(growable: false);
+final _displayedEnglishWords = Expando<List<String>>();
+
+List<String> get englishDisplayedBaseWords {
+  final database = appDatabase;
+  if (database == null) throw StateError('Dictionary is not initialized.');
+  return _displayedEnglishWords[database] ??= database
+      .dictionaryWords(Language.english)
+      .where((word) => word != 'AIDS' && isIndexedEnglishWord(word))
+      .toList(growable: false);
+}
 
 bool _isIndependentEnglishWord(String word) =>
     isIndexedEnglishWord(word) &&
@@ -67,27 +74,21 @@ class PatternMapProvider extends FamilyNotifier<PatternMap, String> {
   @override
   PatternMap build(String arg) {
     if (arg == "english") {
+      final words = appDatabase!.dictionary(Language.english);
       return PatternMap.fromList(
         [
           ...englishDisplayedBaseWords,
-          ...englishIndependentHeadwords.where(_isIndependentEnglishWord),
-          ...englishSourceHeadwords.where(_isIndependentEnglishWord),
+          ...words.headwords.where(_isIndependentEnglishWord),
         ],
-        irregularPlurals: [
-          ...englishIrregularPlurals.where(isIndexedEnglishWord),
-          ...englishSourceIrregularPlurals.where(isIndexedEnglishWord),
-        ],
-        regularPlurals: [
-          ...englishRegularPlurals.where(isIndexedEnglishWord),
-          ...englishSourceRegularPlurals.where(isIndexedEnglishWord),
-        ],
-        verbForms: englishSourceVerbForms.where(isIndexedEnglishWord),
-        descriptiveForms: englishSourceDescriptiveForms.where(
-          isIndexedEnglishWord,
-        ),
+        irregularPlurals: words.irregularPlurals.where(isIndexedEnglishWord),
+        regularPlurals: words.regularPlurals.where(isIndexedEnglishWord),
+        verbForms: words.verbForms.where(isIndexedEnglishWord),
+        descriptiveForms: words.descriptiveForms.where(isIndexedEnglishWord),
       );
     } else {
-      return PatternMap.fromList(spanishWordList);
+      return PatternMap.fromList(
+        appDatabase!.dictionaryWords(Language.spanish),
+      );
     }
   }
 
